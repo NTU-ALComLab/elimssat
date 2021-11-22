@@ -1,0 +1,3 @@
+[submodule "src/ext-Synthesis"]
+	path = src/ext-Synthesis
+	url = git@github.com:NTU-ALComLab/ext-Synthesis.git
