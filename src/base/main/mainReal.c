@@ -132,7 +132,7 @@ int Abc_RealMain( int argc, char * argv[] )
                 break;                                          
 
             case 'm': {
-#if !defined(WIN32) && !defined(ABC_NO_RLIMIT)
+#ifndef WIN32                
                 int maxMb = atoi(globalUtilOptarg);             
                 printf("Limiting memory use to %d MB\n", maxMb);
                 struct rlimit limit = {                         
@@ -144,9 +144,9 @@ int Abc_RealMain( int argc, char * argv[] )
                 break; 
             }                                         
             case 'l': {
-#if !defined(WIN32) && !defined(ABC_NO_RLIMIT)
-                rlim_t maxTime = atoi(globalUtilOptarg);           
-                printf("Limiting time to %d seconds\n", (int)maxTime);
+#ifndef WIN32
+                int maxTime = atoi(globalUtilOptarg);           
+                printf("Limiting time to %d seconds\n", maxTime);
                 struct rlimit limit = {                         
                     maxTime,             /* soft limit */       
                     maxTime              /* hard limit */       
@@ -316,16 +316,27 @@ int Abc_RealMain( int argc, char * argv[] )
         {
             Abc_UtilsSource( pAbc );
         }
-
+        // printf("%s\n", sInFile);
+        // printf("%s\n", Extra_FileNameExtension(sInFile));
+        int fInFileIsNotSdimacs = sInFile ? strcmp(Extra_FileNameExtension(sInFile), "sdimacs") : 1;
+        // printf("%d\n", fInFileIsNotSdimacs);
         fStatus = 0;
-        if ( fInitRead && sInFile )
+        if ( fInitRead && sInFile && fInFileIsNotSdimacs )
         {
             sprintf( sCommandTmp, "%s %s", sReadCmd, sInFile );
+            printf("%s\n", sCommandTmp);
             fStatus = Cmd_CommandExecute( pAbc, sCommandTmp );
         }
 
+
         if ( fStatus == 0 )
         {
+            if (fInFileIsNotSdimacs == 0) {
+                Vec_StrPop(sCommandUsr);
+                Vec_StrPush(sCommandUsr, ' ');
+                Vec_StrAppend(sCommandUsr, sInFile);
+                Vec_StrPush(sCommandUsr, '\0');
+            }
             /* cmd line contains `source <file>' */
             fStatus = Cmd_CommandExecute( pAbc, Vec_StrArray(sCommandUsr) );
             if ( (fStatus == 0 || fStatus == -1) && fFinalWrite && sOutFile )
