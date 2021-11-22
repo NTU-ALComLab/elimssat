@@ -58,3 +58,5 @@ tags
 
 /cmake
 /cscope
+benchmarks
+tmp
