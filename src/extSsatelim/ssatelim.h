@@ -17,6 +17,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "base/main/main.h"
+#include "bdd/extrab/extraBdd.h" // 
 #include "sat/bsat/satSolver.h"
 #include "ssatBooleanSort.h"
 
@@ -34,9 +35,12 @@ typedef enum QuantifierType QuantifierType;
 
 struct ssat_solver_t;
 typedef struct ssat_solver_t ssat_solver;
+
 struct ssat_solver_t
 {
+  DdManager *dd;
   Abc_Ntk_t * pNtk;
+  DdNode *bFunc;
   Abc_Obj_t * pPo;
   Vec_Ptr_t * pQuan;
   Vec_Int_t * pQuanType;
@@ -80,7 +84,8 @@ extern int ssat_addforall(ssat_solver* s, lit* begin, lit* end);
 extern int ssat_addrandom(ssat_solver* s, lit* begin, lit* end, double prob);
 extern int ssat_addclause(ssat_solver* s, lit* begin, lit* end);
 
-extern int ssat_solver_solve(ssat_solver* s);
+extern void ssat_solver_existelim(ssat_solver* s, Vec_Int_t* pScope);
+extern void ssat_solver_randomelim(ssat_solver* s, Vec_Int_t* pScope, Vec_Int_t *pRandomReverse);
 extern int ssat_solver_solve2(ssat_solver* s);
 extern double ssat_result(ssat_solver* s);
 

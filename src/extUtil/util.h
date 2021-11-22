@@ -18,6 +18,7 @@
 
 #include "base/main/main.h"
 #include "sat/bsat/satSolver.h"
+#include "bdd/extrab/extraBdd.h" // 
 #include "sat/cnf/cnf.h"
 
 ////////////////////////////////////////////////////////////////////////

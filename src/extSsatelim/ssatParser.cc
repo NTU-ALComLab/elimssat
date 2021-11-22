@@ -29,7 +29,6 @@ ABC_NAMESPACE_IMPL_START
 ///                        DECLARATIONS                              ///
 ////////////////////////////////////////////////////////////////////////
 
-static const long long PARSE_FAILED = INTMAX_MIN;
 static const int DEBUG_PRINT = 0;
 
 ////////////////////////////////////////////////////////////////////////
@@ -265,22 +264,6 @@ void ssat_Parser(ssat_solver * s, char * filename)
 
     process(s, gzopen(filename, "rb"));
 
-    // ifstream infile; 
-    // infile.open(filename);
-
-    // if(!infile.good())
-    // {
-    //     return;
-    // }
-
-    // string in_str;
-    // while ( !infile.eof() )
-    // {
-    //     getline(infile, in_str);
-    //     ssat_lineHandle(s, in_str);  
-    // }
-
-    // infile.close();
     return;
 }
 

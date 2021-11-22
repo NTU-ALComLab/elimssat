@@ -60,3 +60,5 @@ tags
 /cscope
 benchmarks
 tmp
+.ccls-cache
+compile_commands.json
