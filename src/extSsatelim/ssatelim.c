@@ -35,7 +35,7 @@ extern int Abc_NtkMinimumBase2(Abc_Ntk_t *pNtk);
 
 // extSsatelim/ssatBooleanSort.cc
 extern DdNode *RandomQuantify(DdManager *dd, DdNode *bFunc, Vec_Int_t *pScope);
-extern DdNode *RandomQuantifyReverse(DdManager *dd, DdNode *bFunc,
+extern DdNode *RandomQuantifyReverse(DdManager **dd, DdNode *bFunc,
                                      Vec_Int_t *pScopeReverse);
 
 // extUtil/util.c
@@ -339,8 +339,9 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope, Vec_Int_t *pRando
   Vec_IntForEachEntryReverse(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
-  if (s->useBdd)
-    s->bFunc = RandomQuantifyReverse(s->dd, s->bFunc, pRandomReverse);
+  if (s->useBdd) {
+    s->bFunc = RandomQuantifyReverse(&s->dd, s->bFunc, pRandomReverse);
+  }
   else
     s->pNtk = random_eliminate_scope(s->pNtk, pRandomReverse);
 }

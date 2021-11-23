@@ -29,43 +29,15 @@ ABC_NAMESPACE_IMPL_START
 ///                     FUNCTION DEFINITIONS                         ///
 ////////////////////////////////////////////////////////////////////////
 extern "C" DdNode * ExistQuantify(DdManager * dd, DdNode * bFunc, Vec_Int_t * pPiIndex);
-DdNode * sort(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope);
+DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope);
 
-extern "C" DdNode * RandomQuantify(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope)
+// use poinrter to pointer of DdManager because sorting function would change
+// the reference pointer
+extern "C" DdNode * RandomQuantify(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
 {
-  Cudd_AutodynDisable(dd);
+  Cudd_AutodynDisable(*dd);
   return sort(dd, bFunc, pScope);
 }
-
-//=================================================
-static DdNode * ExistRandomQuantify(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeE, Vec_Int_t * pScopeR)
-{
-  bFunc = RandomQuantify(dd, bFunc, pScopeR);
-  bFunc = ExistQuantify(dd, bFunc, pScopeE);
-  return bFunc;
-}
-
-Abc_Ntk_t * Util_NtkExistRandomQuantifyPis_BDD( Abc_Ntk_t * pNtk, Vec_Int_t * pScopeE, Vec_Int_t * pScopeR )
-{
-  if (!Abc_NtkIsBddLogic(pNtk))
-    return NULL;
-  // Abc_Print( 1, "Util_NtkExistQuantifyPis_BDD\n" ); 
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  // int fDualRail = 0;
-  int fBddSizeMax = ABC_INFINITY;
-
-  pNtk = Abc_NtkStrash( pNtk, 0, 0, 0 );
-  DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose);
-  DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd( Abc_NtkPo(pNtk, 0) );
-
-  bFunc = ExistRandomQuantify( dd, bFunc, pScopeE, pScopeR );
-
-  // Abc_Print( 1, "Abc_NtkDeriveFromBdd\n" ); 
-  return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
-}
-//=================================================
 
 /**Function*************************************************************
   Synopsis    []
@@ -518,7 +490,7 @@ static DdNode *sorting_reorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, 
   return bFuncNew;
 }
 
-DdNode * sort(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope)
+DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
 {
   DdNode * ptemp;
   Cudd_Ref( bFunc );
@@ -531,20 +503,20 @@ DdNode * sort(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope)
       Abc_Print(1, "[DEBUG] working on %d/%d variables\n", index+1, pScope->nSize);
       Vec_IntPush(pScopeReverse, entry);
       ptemp = bFunc;
-      bFunc = block(dd, bFunc, pScopeReverse);
+      bFunc = block(*dd, bFunc, pScopeReverse);
       Cudd_Ref( bFunc );
-      Cudd_RecursiveDeref( dd, ptemp );
-      int lev = Cudd_ReadPerm(dd, entry);
+      Cudd_RecursiveDeref( *dd, ptemp );
+      int lev = Cudd_ReadPerm(*dd, entry);
       Abc_Print(1, "[DEBUG] Before => The level for variable %d: %d\n", entry, lev);
-      Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(dd));
+      Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
       Abc_Print(1, "[DEBUG] Before => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
-      DdManager *ddNew = Cudd_Init( dd->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0 );
-      bFunc = sorting_reorder(ddNew, dd, bFunc, entry, target_level);
+      DdManager *ddNew = Cudd_Init( (*dd)->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0 );
+      bFunc = sorting_reorder(ddNew, *dd, bFunc, entry, target_level);
       target_level++;
-      dd = ddNew;
-      lev = Cudd_ReadPerm(dd, entry);
+      *dd = ddNew;
+      lev = Cudd_ReadPerm(*dd, entry);
       Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
-      Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(dd));
+      Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
       Abc_Print(1, "[DEBUG] After => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
   }
   Vec_IntFree(pScopeReverse);
@@ -567,13 +539,13 @@ Abc_Ntk_t * Util_NtkRandomQuantifyPis_BDD( Abc_Ntk_t * pNtk, Vec_Int_t * pScope 
   DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose) ;
   DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(pNtk, 0));
 
-  bFunc = sort(dd, bFunc, pScope);
+  bFunc = sort(&dd, bFunc, pScope);
 
   // Abc_Print( 1, "Util_NtkRandomQuantifyPis_BDD\n" ); 
   return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
 }
 
-extern "C" DdNode * RandomQuantifyReverse(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
+extern "C" DdNode * RandomQuantifyReverse(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
 {
   Vec_Int_t * pScope = Vec_IntAlloc(0);
   int index;
