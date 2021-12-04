@@ -16,6 +16,10 @@
 #include "util.h"
 #include "bdd/extrab/extraBdd.h" // 
 #include <math.h> // floor(), ceil(), log2()
+#include <stdarg.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 ABC_NAMESPACE_IMPL_START
 
@@ -845,6 +849,21 @@ Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete )
     return pNtkNew;
 }
 
+Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete )
+{
+    extern Abc_Ntk_t * Abc_NtkDarFraig( Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve, int fTransfer, int fSpeculate, int fChoicing, int fVerbose );
+    int nConfLimit   = 100;
+    int fDoSparse    = 1;
+    int fProve       = 0;
+    int fSpeculate   = 0;
+    int fChoicing    = 0;
+    int fVerbose     = 0;
+    Abc_Ntk_t * pNtkNew = Abc_NtkDarFraig( pNtk, nConfLimit, fDoSparse, fProve, 0, fSpeculate, fChoicing, fVerbose );
+    if (pNtkNew && fDelete)
+       Abc_NtkDelete(pNtk);
+    return pNtkNew;
+}
+
 Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fDelete )
 {
     int fVerbose = 0;
@@ -1474,6 +1493,48 @@ void sat_solver_print( sat_solver* pSat, int fDimacs )
 
     printf( "\n" );
 
+}
+
+static pid_t C_PID;
+static void sigintHandler(int signal_number) {
+  kill(C_PID, SIGTERM);
+}
+
+void Util_CallProcess(char *command, char *exec_command, ...) {
+  int status;
+  signal(SIGINT, sigintHandler);
+  va_list ap;
+  char *args[256];
+  // parse variable length arguments
+  int i = 0;
+  args[i] = exec_command;
+  va_start(ap, exec_command);
+  do {
+    i++;
+    args[i] = va_arg(ap, char*);
+  } while (args[i] != NULL);
+
+  C_PID = fork();
+  if (C_PID == -1) {
+    perror("fork()");
+    exit(-1);
+  } else if (C_PID == 0) { // child process
+    execvp(command, args);
+  } else {
+    wait(&status); // wait for child process
+    if (!WIFEXITED(status)) {
+      printf("forked process execution failed\n");
+      exit(-1);
+    } else if (WIFSIGNALED(status)) {
+      printf("forked process terminated by signal\n");
+      exit(-1);
+    } else {
+      if (WEXITSTATUS(status)) {
+        exit(-1);
+      }
+    }
+    signal(SIGINT, SIG_DFL);
+  }
 }
 
 /**Function*************************************************************

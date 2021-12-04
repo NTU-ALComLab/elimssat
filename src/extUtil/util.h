@@ -79,6 +79,7 @@ extern Abc_Ntk_t * Util_NtkResyn2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDc2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDrwsat( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkStrash( Abc_Ntk_t * pNtk, int fDelete );
 
@@ -120,6 +121,8 @@ extern int sat_solver_add_equal( sat_solver * pSat, int iVar, int iVar2 );
 extern int sat_solver_add_dual_clause( sat_solver * pSat, lit litA, lit litB );
 extern int sat_solver_addclause_from( sat_solver* pSat, Cnf_Dat_t * pCnf );
 extern void sat_solver_print( sat_solver* pSat, int fDimacs );
+// fork process
+extern void Util_CallProcess(char *command, char *exec_command, ...);
 // 
 extern void Vec_IntPtrFree( Vec_Ptr_t * vVecInts );
 // 
