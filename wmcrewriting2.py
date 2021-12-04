@@ -68,6 +68,7 @@ def parse_sdimacs(filename):
     clauses = []
     for line in lines:
         p = line.strip().split()
+        if len(p) == 0: continue
         if p[0] == 'c':
             continue
         elif p[0] == 'p':
