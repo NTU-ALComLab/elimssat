@@ -16,6 +16,7 @@
 ///                          INCLUDES                                ///
 ////////////////////////////////////////////////////////////////////////
 
+#include <unistd.h>
 #include "base/main/main.h"
 #include "bdd/extrab/extraBdd.h" // 
 #include "sat/bsat/satSolver.h"
@@ -79,6 +80,7 @@ extern void ssat_main(char * filename, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
 extern void ssat_parser_finished_process(ssat_solver* s);
+extern void ssat_solver_existouter(ssat_solver *s, char *c);
 extern int ssat_addexistence(ssat_solver* s, lit* begin, lit* end);
 extern int ssat_addforall(ssat_solver* s, lit* begin, lit* end);
 extern int ssat_addrandom(ssat_solver* s, lit* begin, lit* end, double prob);

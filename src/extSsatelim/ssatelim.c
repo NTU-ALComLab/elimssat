@@ -17,9 +17,11 @@
 #include "base/abc/abc.h"
 #include "base/io/ioAbc.h"
 #include "ext-Synthesis/synthesis.h"
+#include "ext-Synthesis/synthesisUtil.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
 #include "ssatBooleanSort.h"
+#include <zlib.h>
 
 ABC_NAMESPACE_IMPL_START
 
@@ -32,6 +34,8 @@ static const lbool l_Unsupp = -2;
 // bdd/extrab/extraBdd.h
 extern Abc_Ntk_t *Abc_NtkFromGlobalBdds(Abc_Ntk_t *pNtk, int fReverse);
 extern int Abc_NtkMinimumBase2(Abc_Ntk_t *pNtk);
+Abc_Ntk_t *Abc_NtkDC2(Abc_Ntk_t *pNtk, int fBalance, int fUpdateLevel,
+                      int fFanout, int fPower, int fVerbose);
 
 // extSsatelim/ssatBooleanSort.cc
 extern DdNode *RandomQuantify(DdManager *dd, DdNode *bFunc, Vec_Int_t *pScope);
@@ -82,7 +86,7 @@ static double ratio_counting(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
   return ret;
 }
 
-static void ssat_build_bdd(ssat_solver* s) {
+static void ssat_build_bdd(ssat_solver *s) {
   int fVerbose = 0;
   int fReorder = 1;
   int fReverse = 0;
@@ -91,17 +95,25 @@ static void ssat_build_bdd(ssat_solver* s) {
                         ? fBddSizeMin
                         : Abc_NtkNodeNum(s->pNtk) * 1.2;
   Abc_Print(1, "Abc_NtkNodeNum(s->pNtk): %d  , BDD limit: %d\n",
-            Abc_NtkNodeNum(s->pNtk), fBddSizeMax);
-  s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1, fReorder,
-                                              fReverse, fVerbose);
+            Abc_NtkObjNumMax(s->pNtk), fBddSizeMax);
+  if (Abc_NtkNodeNum(s->pNtk) > 10000) {
+    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
+                                                fReorder, fReverse, fVerbose);
+  } else {
+    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 100000, 1,
+                                                fReorder, fReverse, fVerbose);
+  }
   s->bFunc = NULL;
   if (s->dd == NULL) {
+    Abc_Print(1, "[INFO] Build BDD failed\n");
     s->useBdd = 0;
   } else {
     Abc_Print(1, "[INFO] Build BDD success\n");
     Abc_Print(1, "[INFO] Use BDD based Solving\n");
     s->useBdd = 1;
-    s->bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(s->pNtk, 0));
+    s->bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkCo(s->pNtk, 0));
+    Abc_Print(1, "[INFO] Object Number of current network: %d\n",
+              Cudd_DagSize(s->bFunc));
   }
 }
 
@@ -128,6 +140,7 @@ static void ssat_synthesis(ssat_solver *s) {
             Abc_NtkNodeNum(s->pNtk));
   s->pNtk = Util_NtkDc2(s->pNtk, 1);
   s->pNtk = Util_NtkResyn2(s->pNtk, 1);
+  s->pNtk = Util_NtkDFraig(s->pNtk, 1);
   Abc_Print(1, "[INFO] Object Number after Synthesis: %d\n",
             Abc_NtkNodeNum(s->pNtk));
 }
@@ -143,7 +156,7 @@ ssat_solver *ssat_solver_new() {
   s->pUnQuan = Vec_IntAlloc(0);
   s->pQuanWeight = Vec_FltAlloc(0);
   s->result = -1;
-  s->useBdd = 1;
+  s->useBdd = 0;
   s->doSynthesis = 1;
   s->useManthan = 1;
   s->useCadet = 0;
@@ -332,7 +345,8 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     s->pNtk = existence_eliminate_scope(s->pNtk, pScope, s->verbose);
 }
 
-void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope, Vec_Int_t *pRandomReverse) {
+void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
+                            Vec_Int_t *pRandomReverse) {
   Abc_Print(1, "[INFO] expand on randomize variable\n");
   int index;
   int entry;
@@ -341,14 +355,74 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope, Vec_Int_t *pRando
   }
   if (s->useBdd) {
     s->bFunc = RandomQuantifyReverse(&s->dd, s->bFunc, pRandomReverse);
-  }
-  else
+  } else
     s->pNtk = random_eliminate_scope(s->pNtk, pRandomReverse);
+}
+
+void ssat_solver_existouter(ssat_solver *s, char *filename) {
+  int index, entry;
+  Vec_Int_t *pScope;
+  FILE *in = fopen(filename, "r");
+  FILE *out = fopen("tmp/temp.qdimacs", "w");
+  char *line = NULL;
+  size_t len = 0;
+  ssize_t read;
+  Vec_Int_t *vExists = Vec_IntAlloc(0);
+  Vec_Int_t *vForalls = Vec_IntAlloc(0);
+  while ((read = getline(&line, &len, in)) != -1) {
+    if (len == 0)
+      continue;
+    if (line[0] == 'p') {
+      fprintf(out, "%s", line);
+      fprintf(out, "a");
+      for (int i = 0; i < Vec_IntSize(s->pQuanType) - 1; i++) {
+        pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
+        Vec_IntForEachEntry(pScope, entry, index) {
+          Vec_IntPush(vForalls, entry + 1);
+          fprintf(out, " %d", entry + 1);
+        }
+      }
+      fprintf(out, " 0\n");
+      fprintf(out, "e");
+      pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
+      Vec_IntForEachEntry(pScope, entry, index) {
+        Vec_IntPush(vExists, entry + 1);
+        fprintf(out, " %d", entry + 1);
+      }
+      fprintf(out, " 0\n");
+    } else if (line[0] == 'e' || line[0] == 'r' || line[0] == 'c') {
+      continue;
+    } else {
+      fprintf(out, "%s", line);
+    }
+  }
+  fclose(in);
+  fclose(out);
+  assert(Vec_IntSize(vExists) + Vec_IntSize(vForalls) == Abc_NtkPiNum(s->pNtk));
+  chdir("manthan");
+  Util_CallProcess("python3", "python3",
+                   "manthan.py", // "--preprocess", "--unique",
+                                 // "--unique",
+                   "--unique", "--preprocess", "--multiclass", "--lexmaxsat",
+                   "--verb", "0", "../tmp/temp.qdimacs", NULL);
+  chdir("../");
+  Abc_Print(1, "[INFO] Calling manthan done\n");
+  Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
+  Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
+  Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
+  Abc_NtkDelete(s->pNtk);
+  s->pNtk = pNtkNew;
+  Abc_NtkDelete(pSkolem);
+  Abc_NtkDelete(pSkolemSyn);
+  Vec_IntFree(vExists);
+  Vec_IntFree(vForalls);
+  ssat_synthesis(s);
+  if (!s->useBdd)
+    ssat_build_bdd(s);
 }
 
 //=================================================
 int ssat_solver_solve2(ssat_solver *s) {
-  ssat_parser_finished_process(s);
   Vec_Int_t *pRandomReverse = Vec_IntAlloc(0);
   Abc_Print(1, "#level: %d\n", Vec_IntSize(s->pQuanType));
 
@@ -362,11 +436,12 @@ int ssat_solver_solve2(ssat_solver *s) {
     } else {
       ssat_solver_randomelim(s, pScope, pRandomReverse);
     }
-    if (!s->useBdd) {
-      ssat_build_bdd(s);
-    }
+
     if (s->doSynthesis && !s->useBdd) {
       ssat_synthesis(s);
+    }
+    if (!s->useBdd) {
+      ssat_build_bdd(s);
     }
   }
   if (Vec_IntSize(s->pUnQuan)) {
@@ -410,7 +485,15 @@ void ssat_main(char *filename, int fVerbose) {
 
   // open file
   ssat_Parser(s, "tmp/temp.sdimacs");
-  // ssat_Parser(s, filename);
+  ssat_parser_finished_process(s);
+  // perform manthan on the original cnf
+  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
+      Abc_NtkNodeNum(s->pNtk) > 2000) {
+    ssat_solver_existouter(s, "tmp/temp.sdimacs");
+    Vec_IntPop(s->pQuanType);
+    Vec_PtrPop(s->pQuan);
+    Vec_FltPop(s->pQuanWeight);
+  }
   int result = ssat_solver_solve2(s);
 
   Abc_Print(1, "c ssat solving in ABC\n");
