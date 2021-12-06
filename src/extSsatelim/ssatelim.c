@@ -503,6 +503,23 @@ void ssat_main(char *filename, int fVerbose) {
   // open file
   ssat_Parser(s, "tmp/temp.sdimacs");
   ssat_parser_finished_process(s);
+  if (s->verbose) {
+    // check redundant variables
+    int entry, index;
+    Vec_Int_t *unQuan = s->pUnQuan;
+    printf("UnQuan Variables: ");
+    int num = 0;
+    Vec_IntForEachEntry(unQuan, entry, index) {
+      int id = VarId_to_PiIndex(entry);
+      Abc_Obj_t *pObj = Abc_NtkPi(s->pNtk, id);
+      printf("%d ", id);
+      if (Abc_ObjFanoutNum(pObj) == 0) {
+        num++;
+      }
+    }
+    printf("\n");
+    printf("Redundant Count = %d\n", num);
+  }
   // perform manthan on the original cnf
   if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
       Abc_NtkNodeNum(s->pNtk) > 2000) {
