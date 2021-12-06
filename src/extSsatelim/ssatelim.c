@@ -86,6 +86,22 @@ static double ratio_counting(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
   return ret;
 }
 
+static void ssat_check_const(ssat_solver *s) {
+  Abc_Obj_t *pObj, *pPo;
+  if (!s->useBdd) {
+    pPo = Abc_NtkPo(s->pNtk, 0);
+    pObj = Abc_ObjFanin0(pPo);
+    if (Abc_AigNodeIsConst(pObj)) {
+      if (Abc_ObjFaninC0(pPo)) {
+        printf("CONST 0!\n");
+      } else {
+        printf("CONST 1!\n");
+      }
+      exit(0);
+    }
+  }
+}
+
 static void ssat_build_bdd(ssat_solver *s) {
   int fVerbose = 0;
   int fReorder = 1;
@@ -443,6 +459,7 @@ int ssat_solver_solve2(ssat_solver *s) {
     if (!s->useBdd) {
       ssat_build_bdd(s);
     }
+    ssat_check_const(s);
   }
   if (Vec_IntSize(s->pUnQuan)) {
     Abc_Print(1, "[INFO] expand on unquantified variable\n");
@@ -494,6 +511,7 @@ void ssat_main(char *filename, int fVerbose) {
     Vec_PtrPop(s->pQuan);
     Vec_FltPop(s->pQuanWeight);
   }
+  ssat_check_const(s);
   int result = ssat_solver_solve2(s);
 
   Abc_Print(1, "c ssat solving in ABC\n");
