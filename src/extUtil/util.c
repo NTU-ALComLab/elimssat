@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 ABC_NAMESPACE_IMPL_START
 
@@ -1495,14 +1496,9 @@ void sat_solver_print( sat_solver* pSat, int fDimacs )
 
 }
 
-static pid_t C_PID;
-static void sigintHandler(int signal_number) {
-  kill(C_PID, SIGTERM);
-}
-
-void Util_CallProcess(char *command, char *exec_command, ...) {
+void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
+  pid_t C_PID;
   int status;
-  signal(SIGINT, sigintHandler);
   va_list ap;
   char *args[256];
   // parse variable length arguments
@@ -1512,6 +1508,7 @@ void Util_CallProcess(char *command, char *exec_command, ...) {
   do {
     i++;
     args[i] = va_arg(ap, char*);
+    // printf("%s\n", args[i]);
   } while (args[i] != NULL);
 
   C_PID = fork();
@@ -1519,6 +1516,12 @@ void Util_CallProcess(char *command, char *exec_command, ...) {
     perror("fork()");
     exit(-1);
   } else if (C_PID == 0) { // child process
+    if (!fVerbose) {
+      int fd = open("/dev/null", O_WRONLY);
+      dup2(fd, 1);
+      dup2(fd, 2);
+      close(fd);
+    }
     execvp(command, args);
   } else {
     wait(&status); // wait for child process
@@ -1533,7 +1536,6 @@ void Util_CallProcess(char *command, char *exec_command, ...) {
         exit(-1);
       }
     }
-    signal(SIGINT, SIG_DFL);
   }
 }
 

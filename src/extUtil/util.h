@@ -122,7 +122,7 @@ extern int sat_solver_add_dual_clause( sat_solver * pSat, lit litA, lit litB );
 extern int sat_solver_addclause_from( sat_solver* pSat, Cnf_Dat_t * pCnf );
 extern void sat_solver_print( sat_solver* pSat, int fDimacs );
 // fork process
-extern void Util_CallProcess(char *command, char *exec_command, ...);
+extern void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...);
 // 
 extern void Vec_IntPtrFree( Vec_Ptr_t * vVecInts );
 // 

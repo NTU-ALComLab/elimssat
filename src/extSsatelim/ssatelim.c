@@ -110,26 +110,27 @@ static void ssat_build_bdd(ssat_solver *s) {
   int fBddSizeMax = (Abc_NtkNodeNum(s->pNtk) < fBddSizeMin)
                         ? fBddSizeMin
                         : Abc_NtkNodeNum(s->pNtk) * 1.2;
-  Abc_Print(1, "Abc_NtkNodeNum(s->pNtk): %d  , BDD limit: %d\n",
-            Abc_NtkObjNumMax(s->pNtk), fBddSizeMax);
   if (Abc_NtkNodeNum(s->pNtk) > 10000) {
     s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
                                                 fReorder, fReverse, fVerbose);
   } else {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 100000, 1,
-                                                fReorder, fReverse, fVerbose);
+    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 100000, 1, fReorder,
+                                                fReverse, fVerbose);
   }
   s->bFunc = NULL;
   if (s->dd == NULL) {
-    Abc_Print(1, "[INFO] Build BDD failed\n");
+    if (s->verbose)
+      Abc_Print(1, "> Build BDD failed\n");
     s->useBdd = 0;
   } else {
-    Abc_Print(1, "[INFO] Build BDD success\n");
-    Abc_Print(1, "[INFO] Use BDD based Solving\n");
     s->useBdd = 1;
     s->bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkCo(s->pNtk, 0));
-    Abc_Print(1, "[INFO] Object Number of current network: %d\n",
-              Cudd_DagSize(s->bFunc));
+    if (s->verbose) {
+      Abc_Print(1, "> Build BDD success\n");
+      Abc_Print(1, "> Use BDD based Solving\n");
+      Abc_Print(1, "> Object Number of current network: %d\n",
+                Cudd_DagSize(s->bFunc));
+    }
   }
 }
 
@@ -151,14 +152,18 @@ static inline int VarId_to_PiIndex(int varId) { return varId - 1; }
 static inline int PiIndex_to_VarId(int piIndex) { return piIndex + 1; }
 
 static void ssat_synthesis(ssat_solver *s) {
-  Abc_Print(1, "[INFO] Perform Synthesis...\n");
-  Abc_Print(1, "[INFO] Object Number before Synthesis: %d\n",
-            Abc_NtkNodeNum(s->pNtk));
+  if (s->verbose) {
+    Abc_Print(1, "> Perform Synthesis...\n");
+    Abc_Print(1, "> Object Number before Synthesis: %d\n",
+              Abc_NtkNodeNum(s->pNtk));
+  }
   s->pNtk = Util_NtkDc2(s->pNtk, 1);
   s->pNtk = Util_NtkResyn2(s->pNtk, 1);
   s->pNtk = Util_NtkDFraig(s->pNtk, 1);
-  Abc_Print(1, "[INFO] Object Number after Synthesis: %d\n",
-            Abc_NtkNodeNum(s->pNtk));
+  if (s->verbose) {
+    Abc_Print(1, "> Object Number after Synthesis: %d\n",
+              Abc_NtkNodeNum(s->pNtk));
+  }
 }
 
 ssat_solver *ssat_solver_new() {
@@ -171,6 +176,8 @@ ssat_solver *ssat_solver_new() {
   s->pQuanType = Vec_IntAlloc(0);
   s->pUnQuan = Vec_IntAlloc(0);
   s->pQuanWeight = Vec_FltAlloc(0);
+  s->varPiIndex = Vec_IntAlloc(0);
+  s->piVarIndex = Vec_IntAlloc(0);
   s->result = -1;
   s->useBdd = 0;
   s->doSynthesis = 1;
@@ -260,7 +267,6 @@ Abc_Ntk_t *existence_eliminate_scope_bdd(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
 Abc_Ntk_t *existence_eliminate_scope_aig(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
                                          int verbose) {
   assert(Abc_NtkIsStrash(pNtk));
-  Abc_Print(1, "[INFO] perform expansion on aig\n");
   Abc_Ntk_t *pNtkNew = Util_NtkExistQuantifyPis(pNtk, pScope);
   return pNtkNew;
 }
@@ -308,20 +314,20 @@ double compute_random(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
 
 //=================================================
 void ssat_quatification_check(ssat_solver *s) {
-  Vec_Int_t *pPi = Vec_IntAlloc(Abc_NtkPiNum(s->pNtk));
-  Vec_IntFill(pPi, Abc_NtkPiNum(s->pNtk), 0);
+  Abc_Obj_t *pObj;
 
+  Abc_NtkIncrementTravId(s->pNtk);
+  int entry, index;
   for (int i = 0; i < Vec_PtrSize(s->pQuan); i++) {
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
-    for (int j = 0; j < Vec_IntSize(pScope); j++) {
-      int varId = Vec_IntEntry(pScope, j);
-      Vec_IntWriteEntry(pPi, varId, 1);
+    Vec_IntForEachEntry(pScope, entry, index) {
+      Abc_NodeSetTravIdCurrent(Abc_NtkPi(s->pNtk, entry));
     }
   }
-  for (int i = 0; i < Vec_IntSize(pPi); i++) {
-    int mark = Vec_IntEntry(pPi, i);
-    if (!mark)
-      Vec_IntPush(s->pUnQuan, i);
+  Abc_NtkForEachPi(s->pNtk, pObj, index) {
+    if (!Abc_NodeIsTravIdCurrent(pObj)) {
+      Vec_IntPush(s->pUnQuan, PiIndex_to_VarId(index));
+    }
   }
 }
 
@@ -332,11 +338,14 @@ void ssat_parser_finished_process(ssat_solver *s) {
   Abc_NtkCheck(s->pNtk);
   ssat_quatification_check(s);
   // try building BDD
+  ssat_synthesis(s);
   ssat_build_bdd(s);
 }
 
 void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
-  Abc_Print(1, "[INFO] expand on existential variable\n");
+  if (s->verbose) {
+    Abc_Print(1, "> expand on existential variable\n");
+  }
   if (s->useBdd)
     s->bFunc = ExistQuantify(s->dd, s->bFunc, pScope);
   else if (s->useManthan) {
@@ -346,7 +355,7 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     Vec_IntForEachEntry(pScope, entry, index) {
       Vec_IntPush(pScopeNew, Abc_NtkPi(s->pNtk, entry)->Id);
     }
-    s->pNtk = manthanExistsElim(s->pNtk, pScopeNew);
+    s->pNtk = manthanExistsElim(s->pNtk, pScopeNew, s->verbose);
     Vec_IntFree(pScopeNew);
   } else if (s->useCadet) {
     Vec_Int_t *pScopeNew = Vec_IntAlloc(pScope->nSize);
@@ -363,7 +372,9 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
 
 void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
-  Abc_Print(1, "[INFO] expand on randomize variable\n");
+  if (s->verbose) {
+    Abc_Print(1, "> expand on randomize variable\n");
+  }
   int index;
   int entry;
   Vec_IntForEachEntryReverse(pScope, entry, index) {
@@ -415,14 +426,16 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   fclose(in);
   fclose(out);
   assert(Vec_IntSize(vExists) + Vec_IntSize(vForalls) == Abc_NtkPiNum(s->pNtk));
-  chdir("manthan");
-  Util_CallProcess("python3", "python3",
+  assert(chdir("manthan"));
+  Util_CallProcess("python3", s->verbose, "python3",
                    "manthan.py", // "--preprocess", "--unique",
                                  // "--unique",
                    "--unique", "--preprocess", "--multiclass", "--lexmaxsat",
                    "--verb", "0", "../tmp/temp.qdimacs", NULL);
-  chdir("../");
-  Abc_Print(1, "[INFO] Calling manthan done\n");
+  assert(chdir("../"));
+  if (s->verbose) {
+    Abc_Print(1, "> Calling manthan done\n");
+  }
   Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
   Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
   Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
@@ -440,13 +453,21 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
 //=================================================
 int ssat_solver_solve2(ssat_solver *s) {
   Vec_Int_t *pRandomReverse = Vec_IntAlloc(0);
-  Abc_Print(1, "#level: %d\n", Vec_IntSize(s->pQuanType));
+  Abc_Print(1, "> #level: %d\n", Vec_IntSize(s->pQuanType));
 
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
-    Abc_Print(1, "level %d: %d element\n", i, Vec_IntSize(pScope));
+    if (s->verbose) {
+      int entry, index;
+      Abc_Print(1, "> level %d: %d element\n", i, Vec_IntSize(pScope));
+      Abc_Print(1, "> variables: ");
+      Vec_IntForEachEntry(pScope, entry, index) {
+        Abc_Print(1, "%d ", PiIndex_to_VarId(entry));
+      }
+      Abc_Print(1, "\n");
+    }
     if (type == Quantifier_Exist) {
       ssat_solver_existelim(s, pScope);
     } else {
@@ -462,7 +483,6 @@ int ssat_solver_solve2(ssat_solver *s) {
     ssat_check_const(s);
   }
   if (Vec_IntSize(s->pUnQuan)) {
-    Abc_Print(1, "[INFO] expand on unquantified variable\n");
     if (s->useBdd)
       s->bFunc = ExistQuantify(s->dd, s->bFunc, s->pUnQuan);
     else
@@ -474,7 +494,6 @@ int ssat_solver_solve2(ssat_solver *s) {
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
   }
 
-  printf("[INFO] expansion done, start model counting...\n");
   Vec_Int_t *pRandom = Vec_IntAlloc(0);
   {
     int index;
@@ -494,35 +513,33 @@ int ssat_solver_solve2(ssat_solver *s) {
 void ssat_main(char *filename, int fVerbose) {
   ssat_solver *s = ssat_solver_new();
   s->verbose = fVerbose;
-  char preprocess_cmd[128];
-  // TODO Change temp file name
-  sprintf(preprocess_cmd, "python3 wmcrewriting2.py %s tmp/temp.sdimacs",
-          filename);
-  system(preprocess_cmd);
+  Util_CallProcess("python3", s->verbose, "python3", "general05.py", filename,
+                   "tmp/temp.sdimacs", NULL);
 
   // open file
   ssat_Parser(s, "tmp/temp.sdimacs");
   ssat_parser_finished_process(s);
   if (s->verbose) {
     // check redundant variables
+    Abc_Print(1, "> Count Redundant Variables\n");
     int entry, index;
     Vec_Int_t *unQuan = s->pUnQuan;
-    printf("UnQuan Variables: ");
     int num = 0;
     Vec_IntForEachEntry(unQuan, entry, index) {
       int id = VarId_to_PiIndex(entry);
       Abc_Obj_t *pObj = Abc_NtkPi(s->pNtk, id);
-      printf("%d ", id);
       if (Abc_ObjFanoutNum(pObj) == 0) {
         num++;
       }
     }
-    printf("\n");
-    printf("Redundant Count = %d\n", num);
+    Abc_Print(1, "> Redundant Count = %d\n", num);
   }
   // perform manthan on the original cnf
   if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
-      Abc_NtkNodeNum(s->pNtk) > 2000) {
+      Abc_NtkNodeNum(s->pNtk) > 5000) {
+    if (s->verbose) {
+      Abc_Print(1, "> exist on original cnf\n");
+    }
     ssat_solver_existouter(s, "tmp/temp.sdimacs");
     Vec_IntPop(s->pQuanType);
     Vec_PtrPop(s->pQuan);
@@ -530,9 +547,6 @@ void ssat_main(char *filename, int fVerbose) {
   }
   ssat_check_const(s);
   int result = ssat_solver_solve2(s);
-
-  Abc_Print(1, "c ssat solving in ABC\n");
-  Abc_Print(1, "#var: %d\n", Abc_NtkPiNum(s->pNtk));
 
   if (result == l_False) {
     // Abc_Print( 1, "s UNSATISFIABLE\n" );
