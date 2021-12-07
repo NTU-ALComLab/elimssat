@@ -47,6 +47,8 @@ struct ssat_solver_t
   Vec_Int_t * pQuanType;
   Vec_Int_t * pUnQuan;
   Vec_Flt_t * pQuanWeight;
+  Vec_Int_t * varPiIndex;
+  Vec_Int_t * piVarIndex;
   double result;
   int doSynthesis;
   int useBdd;
@@ -80,14 +82,21 @@ extern void ssat_main(char * filename, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
 extern void ssat_parser_finished_process(ssat_solver* s);
-extern void ssat_solver_existouter(ssat_solver *s, char *c);
+extern void ssat_synthesis(ssat_solver *s);
+extern void ssat_build_bdd(ssat_solver *s);
 extern int ssat_addexistence(ssat_solver* s, lit* begin, lit* end);
 extern int ssat_addforall(ssat_solver* s, lit* begin, lit* end);
 extern int ssat_addrandom(ssat_solver* s, lit* begin, lit* end, double prob);
 extern int ssat_addclause(ssat_solver* s, lit* begin, lit* end);
+extern void ssat_randomCompute(ssat_solver* s, Vec_Int_t *pRandom);
 
+// ssatExist.c
+extern void ssat_solver_existouter(ssat_solver *s, char *c);
 extern void ssat_solver_existelim(ssat_solver* s, Vec_Int_t* pScope);
+
+// ssatRandom.c
 extern void ssat_solver_randomelim(ssat_solver* s, Vec_Int_t* pScope, Vec_Int_t *pRandomReverse);
+
 extern int ssat_solver_solve2(ssat_solver* s);
 extern double ssat_result(ssat_solver* s);
 

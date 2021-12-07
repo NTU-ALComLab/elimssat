@@ -853,7 +853,7 @@ Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete )
 Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete )
 {
     extern Abc_Ntk_t * Abc_NtkDarFraig( Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve, int fTransfer, int fSpeculate, int fChoicing, int fVerbose );
-    int nConfLimit   = 100;
+    int nConfLimit   = 500;
     int fDoSparse    = 1;
     int fProve       = 0;
     int fSpeculate   = 0;
@@ -1496,9 +1496,14 @@ void sat_solver_print( sat_solver* pSat, int fDimacs )
 
 }
 
+static pid_t C_PID;
+
+void sigintHandler(int signal_number) {
+  kill(C_PID, SIGTERM);
+}
 void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
-  pid_t C_PID;
   int status;
+  signal(SIGINT, sigintHandler);
   va_list ap;
   char *args[256];
   // parse variable length arguments
@@ -1536,6 +1541,7 @@ void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
         exit(-1);
       }
     }
+    signal(SIGINT, SIG_DFL);
   }
 }
 
