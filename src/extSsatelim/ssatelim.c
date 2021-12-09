@@ -30,6 +30,7 @@ ABC_NAMESPACE_IMPL_START
 static const lbool l_Unsupp = -2;
 static ssat_solver *_solver;
 static void ssat_print_perf(ssat_solver *s);
+static fasttime_t t_start, t_end;
 
 // bdd/extrab/extraBdd.h
 extern Abc_Ntk_t *Abc_NtkFromGlobalBdds(Abc_Ntk_t *pNtk, int fReverse);
@@ -43,14 +44,23 @@ void ssat_sighandler(int signal_number) {
 }
 
 static void ssat_print_perf(ssat_solver *s) {
-  if (!s) return;
+  if (!s)
+    return;
   printf("\n");
   printf("==== elimssat profiling ====\n");
   printf("\n");
   if (!s->pPerf->fDone) {
     printf("  > Solving not finish!\n");
-    printf("  > Number of eliminated quantifier     = %d\n", s->pPerf->nExpanded);
-    printf("  > Working on the quantifier type of   = %d\n", s->pPerf->current_type);
+    printf("  > Number of eliminated quantifier     = %d\n",
+           s->pPerf->nExpanded);
+    printf("  > Working on the quantifier type of   = %d\n",
+           s->pPerf->current_type);
+    t_end = gettime();
+    if (s->pPerf->current_type == Quantifier_Exist) {
+      s->pPerf->tExists += tdiff(t_start, t_end);
+    } else {
+      s->pPerf->tRandom += tdiff(t_start, t_end);
+    }
   }
   printf("\n");
   printf("  > Time consumed on exist elimination  = %lf\n", s->pPerf->tExists);
@@ -273,9 +283,9 @@ void ssat_parser_finished_process(ssat_solver *s) {
     if (s->verbose) {
       Abc_Print(1, "> exist on original cnf\n");
     }
-    fasttime_t t_start = gettime();
+    t_start = gettime();
     ssat_solver_existouter(s, "tmp/temp.sdimacs");
-    fasttime_t t_end = gettime();
+    t_end = gettime();
     s->pPerf->tExists += tdiff(t_start, t_end);
     Vec_IntPop(s->pQuanType);
     Vec_PtrPop(s->pQuan);
@@ -298,9 +308,15 @@ int ssat_solver_solve2(ssat_solver *s) {
                 Vec_IntSize(pScope));
     }
     if (type == Quantifier_Exist) {
+      t_start = gettime();
       ssat_solver_existelim(s, pScope);
+      t_end = gettime();
+      s->pPerf->tExists += tdiff(t_start, t_end);
     } else {
+      t_start = gettime();
       ssat_solver_randomelim(s, pScope, pRandomReverse);
+      t_end = gettime();
+      s->pPerf->tRandom += tdiff(t_start, t_end);
     }
     s->pPerf->nExpanded += 1;
 
@@ -313,7 +329,10 @@ int ssat_solver_solve2(ssat_solver *s) {
     ssat_check_const(s);
   }
   if (Vec_IntSize(s->pUnQuan)) {
+    t_start = gettime();
     ssat_solver_existelim(s, s->pUnQuan);
+    t_end = gettime();
+    s->pPerf->tExists += tdiff(t_start, t_end);
   }
 
   if (s->useBdd) {
@@ -341,8 +360,8 @@ int ssat_solver_solve2(ssat_solver *s) {
 void ssat_main(char *filename, int fVerbose) {
   _solver = ssat_solver_new();
   _solver->verbose = fVerbose;
-  Util_CallProcess("python3", _solver->verbose, "python3", "general05.py", filename,
-                   "tmp/temp.sdimacs", NULL);
+  Util_CallProcess("python3", _solver->verbose, "python3", "general05.py",
+                   filename, "tmp/temp.sdimacs", NULL);
   signal(SIGINT, ssat_sighandler);
 
   // open file
