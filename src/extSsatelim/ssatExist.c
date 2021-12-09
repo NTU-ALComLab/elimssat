@@ -37,6 +37,8 @@ static Abc_Ntk_t *existence_eliminate_scope(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
 }
 
 void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
+  fasttime_t t_start, t_end;
+  t_start = gettime();
   if (s->useBdd)
     s->bFunc = ExistQuantify(s->dd, s->bFunc, pScope);
   else if (s->useManthan) {
@@ -59,6 +61,8 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     Vec_IntFree(pScopeNew);
   } else
     s->pNtk = existence_eliminate_scope(s->pNtk, pScope, s->verbose);
+  t_end = gettime();
+  s->pPerf->tExists += tdiff(t_start, t_end);
 }
 
 

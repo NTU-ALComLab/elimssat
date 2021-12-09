@@ -58,6 +58,8 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
   int index;
   int entry;
+  fasttime_t t_start, t_end;
+  t_start = gettime();
   Vec_IntForEachEntryReverse(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
@@ -65,6 +67,8 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
     s->bFunc = RandomQuantifyReverse(&s->dd, s->bFunc, pRandomReverse);
   } else
     s->pNtk = random_eliminate_scope(s->pNtk, pRandomReverse);
+  t_end = gettime();
+  s->pPerf->tRandom += tdiff(t_start, t_end);
 }
 
 void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandom) {

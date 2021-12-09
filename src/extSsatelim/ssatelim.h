@@ -20,6 +20,7 @@
 #include "base/main/main.h"
 #include "bdd/extrab/extraBdd.h" // 
 #include "sat/bsat/satSolver.h"
+#include "extUtil/fasttime.h"
 #include "ssatBooleanSort.h"
 
 ////////////////////////////////////////////////////////////////////////
@@ -29,19 +30,23 @@
 enum QuantifierType
 {
   Quantifier_Exist  = 0,
-  Quantifier_Forall = 1,
-  Quantifier_Random = 2
+  Quantifier_Random = 1,
+  Quantifier_Forall = 2,
 };
 typedef enum QuantifierType QuantifierType;
 
 struct ssat_solver_t;
 typedef struct ssat_solver_t ssat_solver;
+struct ssat_solver_perf_t;
+typedef struct ssat_solver_perf_t ssat_solver_perf;
+
 
 struct ssat_solver_t
 {
   DdManager *dd;
   Abc_Ntk_t * pNtk;
   DdNode *bFunc;
+  ssat_solver_perf * pPerf;
   Abc_Obj_t * pPo;
   Vec_Ptr_t * pQuan;
   Vec_Int_t * pQuanType;
@@ -55,6 +60,15 @@ struct ssat_solver_t
   int useCadet;
   int useManthan;
   int verbose;
+};
+
+struct ssat_solver_perf_t
+{
+  int fDone;
+  int nExpanded;
+  QuantifierType current_type;
+  double tExists;
+  double tRandom;
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -82,6 +96,7 @@ extern void ssat_main(char * filename, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
 extern void ssat_parser_finished_process(ssat_solver* s);
+extern void ssat_check_redundant_var(ssat_solver *s);
 extern void ssat_synthesis(ssat_solver *s);
 extern void ssat_build_bdd(ssat_solver *s);
 extern int ssat_addexistence(ssat_solver* s, lit* begin, lit* end);

@@ -18,6 +18,7 @@
 #include "base/io/ioAbc.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
+#include <signal.h>
 #include <zlib.h>
 
 ABC_NAMESPACE_IMPL_START
@@ -27,9 +28,34 @@ ABC_NAMESPACE_IMPL_START
 ////////////////////////////////////////////////////////////////////////
 
 static const lbool l_Unsupp = -2;
+static ssat_solver *_solver;
+static void ssat_print_perf(ssat_solver *s);
 
 // bdd/extrab/extraBdd.h
 extern Abc_Ntk_t *Abc_NtkFromGlobalBdds(Abc_Ntk_t *pNtk, int fReverse);
+
+void ssat_sighandler(int signal_number) {
+  printf("\n");
+  printf("Interruption occurs!\n");
+  printf("Reporting performance before termination...\n");
+  ssat_print_perf(_solver);
+  exit(0);
+}
+
+static void ssat_print_perf(ssat_solver *s) {
+  if (!s) return;
+  printf("\n");
+  printf("==== elimssat profiling ====\n");
+  printf("\n");
+  if (!s->pPerf->fDone) {
+    printf("  > Solving not finish!\n");
+    printf("  > Number of eliminated quantifier     = %d\n", s->pPerf->nExpanded);
+    printf("  > Working on the quantifier type of   = %d\n", s->pPerf->current_type);
+  }
+  printf("\n");
+  printf("  > Time consumed on exist elimination  = %lf\n", s->pPerf->tExists);
+  printf("  > Time consumed on random elimination = %lf\n", s->pPerf->tRandom);
+}
 
 static void ssat_check_const(ssat_solver *s) {
   Abc_Obj_t *pObj, *pPo;
@@ -112,6 +138,12 @@ ssat_solver *ssat_solver_new() {
   s->pQuanWeight = Vec_FltAlloc(0);
   s->varPiIndex = Vec_IntAlloc(0);
   s->piVarIndex = Vec_IntAlloc(0);
+  s->pPerf = ABC_ALLOC(ssat_solver_perf, 1);
+  s->pPerf->current_type = -1;
+  s->pPerf->nExpanded = 0;
+  s->pPerf->tExists = 0;
+  s->pPerf->tRandom = 0;
+  s->pPerf->fDone = 0;
   s->result = -1;
   s->useBdd = 0;
   s->doSynthesis = 1;
@@ -129,6 +161,7 @@ void ssat_solver_delete(ssat_solver *s) {
     Vec_IntPtrFree(s->pQuan);
     Vec_IntFree(s->pQuanType);
     Vec_IntFree(s->pUnQuan);
+    ABC_FREE(s->pPerf);
     ABC_FREE(s);
   }
 }
@@ -234,6 +267,20 @@ void ssat_parser_finished_process(ssat_solver *s) {
   ssat_build_bdd(s);
   ssat_quatification_check(s);
   ssat_check_redundant_var(s);
+  // perform manthan on the original cnf if the network is small enough
+  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
+      Abc_NtkNodeNum(s->pNtk) > 5000) {
+    if (s->verbose) {
+      Abc_Print(1, "> exist on original cnf\n");
+    }
+    fasttime_t t_start = gettime();
+    ssat_solver_existouter(s, "tmp/temp.sdimacs");
+    fasttime_t t_end = gettime();
+    s->pPerf->tExists += tdiff(t_start, t_end);
+    Vec_IntPop(s->pQuanType);
+    Vec_PtrPop(s->pQuan);
+    Vec_FltPop(s->pQuanWeight);
+  }
 }
 
 int ssat_solver_solve2(ssat_solver *s) {
@@ -243,6 +290,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
+    s->pPerf->current_type = type;
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
     if (s->verbose) {
       Abc_Print(1, "> level %d, quantifier type %s, %d element\n", i,
@@ -254,6 +302,7 @@ int ssat_solver_solve2(ssat_solver *s) {
     } else {
       ssat_solver_randomelim(s, pScope, pRandomReverse);
     }
+    s->pPerf->nExpanded += 1;
 
     if (s->doSynthesis && !s->useBdd) {
       ssat_synthesis(s);
@@ -285,47 +334,39 @@ int ssat_solver_solve2(ssat_solver *s) {
   // Abc_Print( 1, "result: %lf\n", s->result );
   Vec_IntFree(pRandom);
   Vec_IntFree(pRandomReverse);
+  s->pPerf->fDone = 1;
   return l_True;
 }
 
 void ssat_main(char *filename, int fVerbose) {
-  ssat_solver *s = ssat_solver_new();
-  s->verbose = fVerbose;
-  Util_CallProcess("python3", s->verbose, "python3", "general05.py", filename,
+  _solver = ssat_solver_new();
+  _solver->verbose = fVerbose;
+  Util_CallProcess("python3", _solver->verbose, "python3", "general05.py", filename,
                    "tmp/temp.sdimacs", NULL);
+  signal(SIGINT, ssat_sighandler);
 
   // open file
-  ssat_Parser(s, "tmp/temp.sdimacs");
-  ssat_parser_finished_process(s);
-  // perform manthan on the original cnf
-  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
-      Abc_NtkNodeNum(s->pNtk) > 5000) {
-    if (s->verbose) {
-      Abc_Print(1, "> exist on original cnf\n");
-    }
-    ssat_solver_existouter(s, "tmp/temp.sdimacs");
-    Vec_IntPop(s->pQuanType);
-    Vec_PtrPop(s->pQuan);
-    Vec_FltPop(s->pQuanWeight);
-  }
-  ssat_check_const(s);
-  int result = ssat_solver_solve2(s);
+  ssat_Parser(_solver, "tmp/temp.sdimacs");
+  ssat_parser_finished_process(_solver);
+  ssat_check_const(_solver);
+  int result = ssat_solver_solve2(_solver);
 
   if (result == l_False) {
     // Abc_Print( 1, "s UNSATISFIABLE\n" );
     Abc_Print(1, "s UNSATISFIABLE\n");
-    Abc_Print(1, "  > Result = %e\n", s->result);
+    Abc_Print(1, "  > Result = %e\n", _solver->result);
   } else if (result == l_True) {
     // print probabilty
     Abc_Print(1, "s SATISFIABLE\n");
-    Abc_Print(1, "  > Result = %e\n", s->result);
+    Abc_Print(1, "  > Result = %e\n", _solver->result);
 
   } else if (result == l_Undef) {
     Abc_Print(1, "s UNKNOWN\n");
   } else if (result == l_Unsupp) {
     Abc_Print(1, "s UNSUPPORT\n");
   }
-  ssat_solver_delete(s);
+  ssat_print_perf(_solver);
+  ssat_solver_delete(_solver);
 }
 
 ABC_NAMESPACE_IMPL_END

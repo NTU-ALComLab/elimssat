@@ -1497,12 +1497,16 @@ void sat_solver_print( sat_solver* pSat, int fDimacs )
 }
 
 static pid_t C_PID;
-
+static void (*orig_sighandler)(int) = NULL;
 void sigintHandler(int signal_number) {
   kill(C_PID, SIGTERM);
+  orig_sighandler(signal_number);
 }
 void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
   int status;
+  struct sigaction orig_sig;
+  sigaction(SIGINT, NULL, &orig_sig);
+  orig_sighandler = orig_sig.sa_handler;
   signal(SIGINT, sigintHandler);
   va_list ap;
   char *args[256];
