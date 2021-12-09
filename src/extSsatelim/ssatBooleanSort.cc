@@ -160,6 +160,7 @@ Abc_Ntk_t * random_eliminate_reverse_one_pi2(Abc_Ntk_t * pNtk, Vec_Int_t * pScop
 
   Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObjAnd, pObjOr);
   Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
+  pNtkNew = Util_NtkDFraig(pNtkNew, 1);
   pNtkNew = Util_NtkDc2(pNtkNew, 1);
   pNtkNew = Util_NtkResyn2(pNtkNew, 1);
 
@@ -500,24 +501,23 @@ DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
   int target_level = 0;
   Vec_IntForEachEntryReverse( pScope, entry, index )
   {
-      Abc_Print(1, "[DEBUG] working on %d/%d variables\n", index+1, pScope->nSize);
       Vec_IntPush(pScopeReverse, entry);
       ptemp = bFunc;
       bFunc = block(*dd, bFunc, pScopeReverse);
       Cudd_Ref( bFunc );
       Cudd_RecursiveDeref( *dd, ptemp );
       int lev = Cudd_ReadPerm(*dd, entry);
-      Abc_Print(1, "[DEBUG] Before => The level for variable %d: %d\n", entry, lev);
-      Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
-      Abc_Print(1, "[DEBUG] Before => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
+      // Abc_Print(1, "[DEBUG] Before => The level for variable %d: %d\n", entry, lev);
+      // Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
+      // Abc_Print(1, "[DEBUG] Before => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
       DdManager *ddNew = Cudd_Init( (*dd)->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0 );
       bFunc = sorting_reorder(ddNew, *dd, bFunc, entry, target_level);
       target_level++;
       *dd = ddNew;
       lev = Cudd_ReadPerm(*dd, entry);
-      Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
-      Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
-      Abc_Print(1, "[DEBUG] After => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
+      // Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
+      // Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
+      // Abc_Print(1, "[DEBUG] Object Number of current network: %d\n", Cudd_DagSize(bFunc));
   }
   Vec_IntFree(pScopeReverse);
   Cudd_Deref( bFunc );
