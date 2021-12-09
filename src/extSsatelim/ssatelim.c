@@ -207,15 +207,33 @@ void ssat_quatification_check(ssat_solver *s) {
   }
 }
 
+void ssat_check_redundant_var(ssat_solver *s) {
+  if (s->verbose) {
+    // check redundant variables
+    Abc_Print(1, "> Count Redundant Variables\n");
+    int entry, index;
+    Vec_Int_t *unQuan = s->pUnQuan;
+    int num = 0;
+    Vec_IntForEachEntry(unQuan, entry, index) {
+      Abc_Obj_t *pObj = Abc_NtkPi(s->pNtk, entry);
+      if (Abc_ObjFanoutNum(pObj) == 0) {
+        num++;
+      }
+    }
+    Abc_Print(1, "> Redundant Count = %d\n", num);
+  }
+}
+
 void ssat_parser_finished_process(ssat_solver *s) {
   // Connect the output
   Abc_ObjAddFanin(Abc_NtkPo(s->pNtk, 0), s->pPo);
   s->pNtk = Util_NtkStrash(s->pNtk, 1);
   Abc_NtkCheck(s->pNtk);
-  ssat_quatification_check(s);
   // try building BDD
   ssat_synthesis(s);
   ssat_build_bdd(s);
+  ssat_quatification_check(s);
+  ssat_check_redundant_var(s);
 }
 
 int ssat_solver_solve2(ssat_solver *s) {
@@ -279,20 +297,6 @@ void ssat_main(char *filename, int fVerbose) {
   // open file
   ssat_Parser(s, "tmp/temp.sdimacs");
   ssat_parser_finished_process(s);
-  if (s->verbose) {
-    // check redundant variables
-    Abc_Print(1, "> Count Redundant Variables\n");
-    int entry, index;
-    Vec_Int_t *unQuan = s->pUnQuan;
-    int num = 0;
-    Vec_IntForEachEntry(unQuan, entry, index) {
-      Abc_Obj_t *pObj = Abc_NtkPi(s->pNtk, entry);
-      if (Abc_ObjFanoutNum(pObj) == 0) {
-        num++;
-      }
-    }
-    Abc_Print(1, "> Redundant Count = %d\n", num);
-  }
   // perform manthan on the original cnf
   if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
       Abc_NtkNodeNum(s->pNtk) > 5000) {
