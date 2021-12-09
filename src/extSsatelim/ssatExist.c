@@ -85,6 +85,11 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
           fprintf(out, " %d", entry + 1);
         }
       }
+      pScope = s->pUnQuan;
+        Vec_IntForEachEntry(pScope, entry, index) {
+          Vec_IntPush(vForalls, entry + 1);
+          fprintf(out, " %d", entry + 1);
+        }
       fprintf(out, " 0\n");
       fprintf(out, "e");
       pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
