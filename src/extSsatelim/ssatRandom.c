@@ -58,8 +58,6 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
   int index;
   int entry;
-  fasttime_t t_start, t_end;
-  t_start = gettime();
   Vec_IntForEachEntryReverse(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
@@ -67,11 +65,21 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
     s->bFunc = RandomQuantifyReverse(&s->dd, s->bFunc, pRandomReverse);
   } else
     s->pNtk = random_eliminate_scope(s->pNtk, pRandomReverse);
-  t_end = gettime();
-  s->pPerf->tRandom += tdiff(t_start, t_end);
 }
 
-void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandom) {
+void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
+  if (s->useBdd) {
+    s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
+    s->pNtk = Util_NtkStrash(s->pNtk, 1);
+  }
+  Vec_Int_t *pRandom = Vec_IntAlloc(0);
+  {
+    int index;
+    int entry;
+    Vec_IntForEachEntryReverse(pRandomReverse, entry, index) {
+      Vec_IntPush(pRandom, entry);
+    }
+  }
   Abc_Ntk_t *pNtk = s->pNtk;
   if (!Abc_NtkIsStrash(s->pNtk))
     pNtk = Abc_NtkStrash(s->pNtk, 0, 0, 0);
@@ -94,4 +102,5 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandom) {
 
   Util_MaxInputPatternWithOuputAs0(pNtk, pRandom);
   s->result = ratio_counting(pNtk, pRandom);
+  Vec_IntFree(pRandom);
 }

@@ -14,7 +14,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "ssatelim.h"
-#include "base/abc/abc.h"
 #include "base/io/ioAbc.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
@@ -31,9 +30,6 @@ static const lbool l_Unsupp = -2;
 static ssat_solver *_solver;
 static void ssat_print_perf(ssat_solver *s);
 static fasttime_t t_start, t_end;
-
-// bdd/extrab/extraBdd.h
-extern Abc_Ntk_t *Abc_NtkFromGlobalBdds(Abc_Ntk_t *pNtk, int fReverse);
 
 void ssat_sighandler(int signal_number) {
   printf("\n");
@@ -83,58 +79,34 @@ static void ssat_check_const(ssat_solver *s) {
   }
 }
 
+static void ssat_solve_random(ssat_solver *s, Vec_Int_t *pScope,
+                              Vec_Int_t *pRandomReverse) {
+  t_start = gettime();
+  ssat_solver_randomelim(s, pScope, pRandomReverse);
+  t_end = gettime();
+  s->pPerf->tRandom += tdiff(t_start, t_end);
+}
+
+static void ssat_solve_exist(ssat_solver *s, Vec_Int_t *pScope) {
+  t_start = gettime();
+  ssat_solver_existelim(s, pScope);
+  t_end = gettime();
+  s->pPerf->tExists += tdiff(t_start, t_end);
+}
+
+static void ssat_solve_afterelim(ssat_solver *s) {
+  s->pPerf->nExpanded += 1;
+
+  if (s->doSynthesis && !s->useBdd) {
+    ssat_synthesis(s);
+  }
+  if (!s->useBdd) {
+    ssat_build_bdd(s);
+  }
+  ssat_check_const(s);
+}
+
 int ssatelim_init_function() { return 0; }
-
-static inline int VarId_to_PiIndex(int varId) { return varId - 1; }
-
-static inline int PiIndex_to_VarId(int piIndex) { return piIndex + 1; }
-
-void ssat_synthesis(ssat_solver *s) {
-  if (s->verbose) {
-    Abc_Print(1, "> Perform Synthesis...\n");
-    Abc_Print(1, "> Object Number before Synthesis: %d\n",
-              Abc_NtkNodeNum(s->pNtk));
-  }
-  s->pNtk = Util_NtkDc2(s->pNtk, 1);
-  s->pNtk = Util_NtkResyn2(s->pNtk, 1);
-  s->pNtk = Util_NtkDFraig(s->pNtk, 1);
-  if (s->verbose) {
-    Abc_Print(1, "> Object Number after Synthesis: %d\n",
-              Abc_NtkNodeNum(s->pNtk));
-  }
-}
-
-void ssat_build_bdd(ssat_solver *s) {
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  int fBddSizeMin = 10240;
-  int fBddSizeMax = (Abc_NtkNodeNum(s->pNtk) < fBddSizeMin)
-                        ? fBddSizeMin
-                        : Abc_NtkNodeNum(s->pNtk) * 1.2;
-  if (Abc_NtkNodeNum(s->pNtk) > 10000) {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
-                                                fReorder, fReverse, fVerbose);
-  } else {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 100000, 1, fReorder,
-                                                fReverse, fVerbose);
-  }
-  s->bFunc = NULL;
-  if (s->dd == NULL) {
-    if (s->verbose)
-      Abc_Print(1, "> Build BDD failed\n");
-    s->useBdd = 0;
-  } else {
-    s->useBdd = 1;
-    s->bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkCo(s->pNtk, 0));
-    if (s->verbose) {
-      Abc_Print(1, "> Build BDD success\n");
-      Abc_Print(1, "> Use BDD based Solving\n");
-      Abc_Print(1, "> Object Number of current network: %d\n",
-                Cudd_DagSize(s->bFunc));
-    }
-  }
-}
 
 ssat_solver *ssat_solver_new() {
   ssat_solver *s = (ssat_solver *)ABC_CALLOC(char, sizeof(ssat_solver));
@@ -182,57 +154,7 @@ void ssat_solver_setnvars(ssat_solver *s, int n) {
   }
 }
 
-int ssat_addScope(ssat_solver *s, int *begin, int *end, QuantifierType type) {
-  Vec_Int_t *pScope;
-  if (Vec_IntSize(s->pQuanType) && Vec_IntEntryLast(s->pQuanType) == type) {
-    pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
-  } else {
-    pScope = Vec_IntAlloc(0);
-    Vec_PtrPush(s->pQuan, pScope);
-    Vec_IntPush(s->pQuanType, type);
-  }
-
-  for (int *it = begin; it < end; it++) {
-    Vec_IntPush(pScope, VarId_to_PiIndex(*it));
-  }
-  return 1;
-}
-
-int ssat_addexistence(ssat_solver *s, int *begin, int *end) {
-  Vec_FltPush(s->pQuanWeight, -1);
-  return ssat_addScope(s, begin, end, Quantifier_Exist);
-}
-
-int ssat_addforall(ssat_solver *s, int *begin, int *end) {
-  Vec_FltPush(s->pQuanWeight, -1);
-  return ssat_addScope(s, begin, end, Quantifier_Forall);
-}
-
-int ssat_addrandom(ssat_solver *s, int *begin, int *end, double prob) {
-  Vec_FltPush(s->pQuanWeight, prob);
-  if (prob != 0.5) {
-    Abc_Print(-1, "Probility of random var is not 0.5\n");
-  }
-  return ssat_addScope(s, begin, end, Quantifier_Random);
-}
-
-int ssat_addclause(ssat_solver *s, lit *begin, lit *end) {
-  Abc_Obj_t *pObj = Abc_AigConst0(s->pNtk);
-  for (lit *it = begin; it < end; it++) {
-    int var = lit_var(*it);
-    int sign = lit_sign(*it);
-    Abc_Obj_t *pPi = Abc_NtkPi(s->pNtk, VarId_to_PiIndex(var));
-    if (sign) {
-      pPi = Abc_ObjNot(pPi);
-    }
-    pObj = Util_AigNtkOr(s->pNtk, pObj, pPi);
-  }
-  s->pPo = Util_AigNtkAnd(s->pNtk, s->pPo, pObj);
-  return 1;
-}
-
-//=================================================
-void ssat_quatification_check(ssat_solver *s) {
+static void ssat_quatification_check(ssat_solver *s) {
   Abc_Obj_t *pObj;
 
   Abc_NtkIncrementTravId(s->pNtk);
@@ -250,7 +172,7 @@ void ssat_quatification_check(ssat_solver *s) {
   }
 }
 
-void ssat_check_redundant_var(ssat_solver *s) {
+static void ssat_check_redundant_var(ssat_solver *s) {
   if (s->verbose) {
     // check redundant variables
     Abc_Print(1, "> Count Redundant Variables\n");
@@ -295,8 +217,6 @@ void ssat_parser_finished_process(ssat_solver *s) {
 
 int ssat_solver_solve2(ssat_solver *s) {
   Vec_Int_t *pRandomReverse = Vec_IntAlloc(0);
-  Abc_Print(1, "> #level: %d\n", Vec_IntSize(s->pQuanType));
-
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
@@ -308,50 +228,17 @@ int ssat_solver_solve2(ssat_solver *s) {
                 Vec_IntSize(pScope));
     }
     if (type == Quantifier_Exist) {
-      t_start = gettime();
-      ssat_solver_existelim(s, pScope);
-      t_end = gettime();
-      s->pPerf->tExists += tdiff(t_start, t_end);
+      ssat_solve_exist(s, pScope);
     } else {
-      t_start = gettime();
-      ssat_solver_randomelim(s, pScope, pRandomReverse);
-      t_end = gettime();
-      s->pPerf->tRandom += tdiff(t_start, t_end);
+      ssat_solve_random(s, pScope, pRandomReverse);
     }
-    s->pPerf->nExpanded += 1;
-
-    if (s->doSynthesis && !s->useBdd) {
-      ssat_synthesis(s);
-    }
-    if (!s->useBdd) {
-      ssat_build_bdd(s);
-    }
-    ssat_check_const(s);
+    ssat_solve_afterelim(s);
   }
   if (Vec_IntSize(s->pUnQuan)) {
-    t_start = gettime();
-    ssat_solver_existelim(s, s->pUnQuan);
-    t_end = gettime();
-    s->pPerf->tExists += tdiff(t_start, t_end);
+    ssat_solve_exist(s, s->pUnQuan);
   }
-
-  if (s->useBdd) {
-    s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
-    s->pNtk = Util_NtkStrash(s->pNtk, 1);
-  }
-
-  Vec_Int_t *pRandom = Vec_IntAlloc(0);
-  {
-    int index;
-    int entry;
-    Vec_IntForEachEntryReverse(pRandomReverse, entry, index) {
-      Vec_IntPush(pRandom, entry);
-    }
-  }
-  Abc_NtkCheck(s->pNtk);
-  ssat_randomCompute(s, pRandom);
-  // Abc_Print( 1, "result: %lf\n", s->result );
-  Vec_IntFree(pRandom);
+  // count the final result
+  ssat_randomCompute(s, pRandomReverse);
   Vec_IntFree(pRandomReverse);
   s->pPerf->fDone = 1;
   return l_True;

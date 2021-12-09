@@ -14,6 +14,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "ssatelim.h"
+#include "extUtil/util.h"
 #include <zlib.h>
 #include <iostream>
 #include <algorithm>
@@ -41,6 +42,56 @@ static void error(const char* const msg)
     std::cerr << msg << "\n";
     exit(255);
 }
+
+int ssat_addScope(ssat_solver *s, int *begin, int *end, QuantifierType type) {
+  Vec_Int_t *pScope;
+  if (Vec_IntSize(s->pQuanType) && Vec_IntEntryLast(s->pQuanType) == type) {
+    pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
+  } else {
+    pScope = Vec_IntAlloc(0);
+    Vec_PtrPush(s->pQuan, pScope);
+    Vec_IntPush(s->pQuanType, type);
+  }
+
+  for (int *it = begin; it < end; it++) {
+    Vec_IntPush(pScope, *it - 1);
+  }
+  return 1;
+}
+
+int ssat_addexistence(ssat_solver *s, int *begin, int *end) {
+  Vec_FltPush(s->pQuanWeight, -1);
+  return ssat_addScope(s, begin, end, Quantifier_Exist);
+}
+
+int ssat_addforall(ssat_solver *s, int *begin, int *end) {
+  Vec_FltPush(s->pQuanWeight, -1);
+  return ssat_addScope(s, begin, end, Quantifier_Forall);
+}
+
+int ssat_addrandom(ssat_solver *s, int *begin, int *end, double prob) {
+  Vec_FltPush(s->pQuanWeight, prob);
+  if (prob != 0.5) {
+    Abc_Print(-1, "Probility of random var is not 0.5\n");
+  }
+  return ssat_addScope(s, begin, end, Quantifier_Random);
+}
+
+int ssat_addclause(ssat_solver *s, lit *begin, lit *end) {
+  Abc_Obj_t *pObj = Abc_AigConst0(s->pNtk);
+  for (lit *it = begin; it < end; it++) {
+    int var = lit_var(*it);
+    int sign = lit_sign(*it);
+    Abc_Obj_t *pPi = Abc_NtkPi(s->pNtk, var - 1);
+    if (sign) {
+      pPi = Abc_ObjNot(pPi);
+    }
+    pObj = Util_AigNtkOr(s->pNtk, pObj, pPi);
+  }
+  s->pPo = Util_AigNtkAnd(s->pNtk, s->pPo, pObj);
+  return 1;
+}
+
 
 void ssat_readHeader_cnf(ssat_solver * s, string& str_in)
 {
