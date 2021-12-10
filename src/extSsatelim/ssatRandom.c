@@ -68,6 +68,7 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
 }
 
 void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
+  if (s->pPerf->fDone) return;
   if (s->useBdd) {
     s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
