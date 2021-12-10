@@ -1,0 +1,23 @@
+* Todo Lists
+
+** Short Term
+- TODO Fix segmenation fault on some benchmarks
+- TODO Remove redundant variables
+- TODO Run experimens on EDA-Union server
+- TODO Use sat solving on the innermost exist quantification
+
+** Long Term
+- Support approximate SSAT solving
+- Speed up manthan runtime
+
+** Done
+- DONE Print out current eliminate quantifier and profiling information when interrupt.
+  CLOSED: [2021-12-09 Thu 13:44]
+- DONE Clean up & Refactor the main code in ssatelim.c
+  CLOSED: [2021-12-09 Thu 13:47]
+- DONE Fix aborted case on ~manthan~ (~toilet_a_06_01.10.sdimacs~)
+  CLOSED: [2021-12-07 Tue 15:15]
+- DONE collect solving result when running benchmarks(using ~table-generator~)
+   CLOSED: [2021-12-07 Tue 15:16]
+
+
