@@ -36,6 +36,10 @@ static const int DEBUG_PRINT = 0;
 ///                     FUNCTION DEFINITIONS                         ///
 ////////////////////////////////////////////////////////////////////////
 static const unsigned BUFLEN = 1024000;
+static int CLAUSE_NUM = 0;
+static int PREFIX_NUM = 0;
+static int EXIST_NUM = 0;
+static int RANDOM_NUM = 0;
 
 static void error(const char* const msg)
 {
@@ -264,6 +268,7 @@ void ssat_lineHandle(ssat_solver * s, string& in_str)
     }
     else if (in_str[0] == '-' || isdigit(in_str[0]))
     {
+        CLAUSE_NUM++;
         ssat_readClause(s, in_str);
     }
     else
@@ -291,7 +296,6 @@ void process(ssat_solver * s, gzFile in)
 
         for (char* eol; (cur<end) && (eol = std::find(cur, end, '\n')) < end; cur = eol + 1)
         {
-            // std::cout << std::string(cur, eol) << "\n";
             string in_str = string(cur, eol);
             ssat_lineHandle(s, in_str);
         }
@@ -314,6 +318,21 @@ void ssat_Parser(ssat_solver * s, char * filename)
     }
 
     process(s, gzopen(filename, "rb"));
+    int entry, index;
+    Vec_IntForEachEntry(s->pQuanType, entry, index) {
+      PREFIX_NUM++;
+      if (entry == Quantifier_Exist) {
+        EXIST_NUM += Vec_IntSize((Vec_Int_t*)(Vec_PtrEntry(s->pQuan, index)));
+      } else {
+        RANDOM_NUM += Vec_IntSize((Vec_Int_t*)(Vec_PtrEntry(s->pQuan, index)));
+      }
+    }
+    printf("\n");
+    printf("==== benchmark statistics ====\n");
+    printf("  > Number of Prefixes                = %d\n", PREFIX_NUM);
+    printf("  > Number of Existitential Variables = %d\n", EXIST_NUM);
+    printf("  > Number of Randomize Variables     = %d\n", RANDOM_NUM);
+    printf("  > Number of Clauses                 = %d\n", CLAUSE_NUM);
 
     return;
 }

@@ -72,6 +72,7 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
   }
+  Abc_NtkCheck(s->pNtk);
   Vec_Int_t *pRandom = Vec_IntAlloc(0);
   {
     int index;
