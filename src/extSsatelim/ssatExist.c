@@ -107,19 +107,23 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   fclose(in);
   fclose(out);
   assert(Vec_IntSize(vExists) + Vec_IntSize(vForalls) == Abc_NtkPiNum(s->pNtk));
-  chdir("manthan");
-  Util_CallProcess("python3", s->verbose, "python3",
-                   "manthan.py", // "--preprocess", "--unique",
-                                 // "--unique",
-                   "--unique", "--preprocess", "--multiclass", "--lexmaxsat",
-                   "--verb", "0", "../tmp/temp.qdimacs", NULL);
-  chdir("../");
-  if (s->verbose) {
-    Abc_Print(1, "> Calling manthan done\n");
-  }
-  Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
-  Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
-  Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
+  // chdir("manthan");
+  // Util_CallProcess("python3", s->verbose, "python3",
+  //                  "manthan.py", // "--preprocess", "--unique",
+  //                                // "--unique",
+  //                  "--unique", "--preprocess", "--multiclass", "--lexmaxsat",
+  //                  "--verb", "0", "../tmp/temp.qdimacs", NULL);
+  // chdir("../");
+  // if (s->verbose) {
+  //   Abc_Print(1, "> Calling manthan done\n");
+  // }
+  // Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
+  // Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
+  // Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
+  system("bin/cadet -e tmp/temp_skolem.aig tmp/temp.qdimacs");
+  Abc_Ntk_t* pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
+  Abc_Ntk_t* pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
+  Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolemSyn);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;
   Abc_NtkDelete(pSkolem);

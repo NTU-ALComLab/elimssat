@@ -86,19 +86,22 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     pNtk = Abc_NtkStrash(s->pNtk, 0, 0, 0);
 
   Util_NtkModelAlloc(pNtk);
-  int verbose = 0;
   unsigned int simulated_result = simulateTrivialCases(pNtk);
   if (bit0_is_1(simulated_result)) {
-    if (verbose) {
+    if (s->verbose) {
       Abc_Print(1, "F equals const 1\n");
     }
     s->result = 1;
+    Vec_IntFree(pRandom);
+    return;
   }
   if (bit1_is_0(simulated_result)) {
-    if (verbose) {
+    if (s->verbose) {
       Abc_Print(1, "F equals const 0\n");
     }
     s->result = 0;
+    Vec_IntFree(pRandom);
+    return;
   }
 
   Util_MaxInputPatternWithOuputAs0(pNtk, pRandom);

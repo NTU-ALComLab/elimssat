@@ -64,17 +64,15 @@ static void ssat_print_perf(ssat_solver *s) {
 
 static void ssat_check_const(ssat_solver *s) {
   Abc_Obj_t *pObj, *pPo;
-  if (!s->useBdd) {
-    pPo = Abc_NtkPo(s->pNtk, 0);
-    pObj = Abc_ObjFanin0(pPo);
-    if (Abc_AigNodeIsConst(pObj)) {
-      if (Abc_ObjFaninC0(pPo)) {
-        printf("CONST 0!\n");
-      } else {
-        printf("CONST 1!\n");
-      }
-      exit(0);
+  pPo = Abc_NtkPo(s->pNtk, 0);
+  pObj = Abc_ObjFanin0(pPo);
+  if (Abc_AigNodeIsConst(pObj)) {
+    if (Abc_ObjFaninC0(pPo)) {
+      s->result = 0;
+    } else {
+      s->result = 1;
     }
+    s->pPerf->fDone = 1;
   }
 }
 
@@ -216,6 +214,10 @@ int ssat_solver_solve2(ssat_solver *s) {
       ssat_solve_random(s, pScope, pRandomReverse);
     }
     ssat_solve_afterelim(s);
+    if (s->pPerf->fDone) {
+      Vec_IntFree(pRandomReverse);
+      return s->result;
+    }
   }
   if (Vec_IntSize(s->pUnQuan)) {
     ssat_solve_exist(s, s->pUnQuan);
