@@ -1502,7 +1502,7 @@ void sigintHandler(int signal_number) {
   kill(C_PID, SIGTERM);
   orig_sighandler(signal_number);
 }
-void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
+int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
   int status;
   struct sigaction orig_sig;
   sigaction(SIGINT, NULL, &orig_sig);
@@ -1542,7 +1542,7 @@ void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
       exit(-1);
     } else {
       if (WEXITSTATUS(status)) {
-        // exit(-1);
+        return 0;
       }
     }
     signal(SIGINT, SIG_DFL);

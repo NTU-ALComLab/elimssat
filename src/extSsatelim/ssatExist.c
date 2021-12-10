@@ -122,12 +122,13 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   Util_CallProcess("bin/cadet", s->verbose, "bin/cadet", "-e", "tmp/temp_skolem.aig",
                    "tmp/temp.qdimacs", NULL);
   Abc_Ntk_t *pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
-  Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
-  Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolemSyn);
+  pSkolem = Util_NtkDc2(pSkolem, 1);
+  pSkolem = Util_NtkResyn2(pSkolem, 1);
+  pSkolem = Util_NtkDFraig(pSkolem, 1);
+  Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolem);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;
   Abc_NtkDelete(pSkolem);
-  Abc_NtkDelete(pSkolemSyn);
   Vec_IntFree(vExists);
   Vec_IntFree(vForalls);
   ssat_synthesis(s);

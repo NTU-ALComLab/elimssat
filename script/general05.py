@@ -68,6 +68,8 @@ def main(argv):
     for key, (new_var, op) in mapping.items():
         clauses = rewrite_clause(key, new_var, op, clauses)
     
+    print(len(clauses))
+    if len(clauses) > 150000: exit(1)
     print('Conversion time = %s' % (time.time() - start))
 
     f = open(outfile, 'r')
