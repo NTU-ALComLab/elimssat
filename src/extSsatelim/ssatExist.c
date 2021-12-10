@@ -1,30 +1,30 @@
-#include "ssatelim.h"
-#include "extUtil/util.h"
 #include "ext-Synthesis/synthesis.h"
 #include "ext-Synthesis/synthesisUtil.h"
+#include "extUtil/util.h"
+#include "ssatelim.h"
 
 extern Abc_Ntk_t *Abc_NtkDC2(Abc_Ntk_t *pNtk, int fBalance, int fUpdateLevel,
-                      int fFanout, int fPower, int fVerbose);
+                             int fFanout, int fPower, int fVerbose);
 // extUtil/util.c
 extern DdNode *ExistQuantify(DdManager *dd, DdNode *bFunc, Vec_Int_t *pPiIndex);
 
-static Abc_Ntk_t *existence_eliminate_scope_bdd(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
-                                         int verbose) {
+static Abc_Ntk_t *
+existence_eliminate_scope_bdd(Abc_Ntk_t *pNtk, Vec_Int_t *pScope, int verbose) {
   Abc_Print(1, "existence_eliminate_scope_bdd\n");
   Abc_Ntk_t *pNtkNew = Util_NtkExistQuantifyPis_BDD(pNtk, pScope);
   Abc_Print(1, "Abc_NtkIsBddLogic(pNtk): %d\n", Abc_NtkIsBddLogic(pNtk));
   return pNtkNew;
 }
 
-static Abc_Ntk_t *existence_eliminate_scope_aig(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
-                                         int verbose) {
+static Abc_Ntk_t *
+existence_eliminate_scope_aig(Abc_Ntk_t *pNtk, Vec_Int_t *pScope, int verbose) {
   assert(Abc_NtkIsStrash(pNtk));
   Abc_Ntk_t *pNtkNew = Util_NtkExistQuantifyPis(pNtk, pScope);
   return pNtkNew;
 }
 
 static Abc_Ntk_t *existence_eliminate_scope(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
-                                     int verbose) {
+                                            int verbose) {
   if (Abc_NtkIsBddLogic(pNtk))
     return existence_eliminate_scope_bdd(pNtk, pScope, verbose);
   if (Abc_NtkIsStrash(pNtk))
@@ -61,7 +61,6 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     s->pNtk = existence_eliminate_scope(s->pNtk, pScope, s->verbose);
 }
 
-
 void ssat_solver_existouter(ssat_solver *s, char *filename) {
   int index, entry;
   Vec_Int_t *pScope;
@@ -86,10 +85,10 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
         }
       }
       pScope = s->pUnQuan;
-        Vec_IntForEachEntry(pScope, entry, index) {
-          Vec_IntPush(vForalls, entry + 1);
-          fprintf(out, " %d", entry + 1);
-        }
+      Vec_IntForEachEntry(pScope, entry, index) {
+        Vec_IntPush(vForalls, entry + 1);
+        fprintf(out, " %d", entry + 1);
+      }
       fprintf(out, " 0\n");
       fprintf(out, "e");
       pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
@@ -120,9 +119,10 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   // Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
   // Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
   // Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
-  system("bin/cadet -e tmp/temp_skolem.aig tmp/temp.qdimacs");
-  Abc_Ntk_t* pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
-  Abc_Ntk_t* pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
+  Util_CallProcess("bin/cadet", s->verbose, "bin/cadet", "-e", "tmp/temp_skolem.aig",
+                   "tmp/temp.qdimacs", NULL);
+  Abc_Ntk_t *pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
+  Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
   Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolemSyn);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;
@@ -135,4 +135,3 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
     ssat_build_bdd(s);
   }
 }
-

@@ -214,10 +214,6 @@ int ssat_solver_solve2(ssat_solver *s) {
       ssat_solve_random(s, pScope, pRandomReverse);
     }
     ssat_solve_afterelim(s);
-    if (s->pPerf->fDone) {
-      Vec_IntFree(pRandomReverse);
-      return s->result;
-    }
   }
   if (Vec_IntSize(s->pUnQuan)) {
     ssat_solve_exist(s, s->pUnQuan);

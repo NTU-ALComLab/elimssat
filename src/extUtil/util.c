@@ -1542,7 +1542,7 @@ void Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
       exit(-1);
     } else {
       if (WEXITSTATUS(status)) {
-        exit(-1);
+        // exit(-1);
       }
     }
     signal(SIGINT, SIG_DFL);
