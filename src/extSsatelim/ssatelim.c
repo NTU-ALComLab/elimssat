@@ -79,6 +79,7 @@ static void ssat_check_const(ssat_solver *s) {
 static void ssat_solve_random(ssat_solver *s, Vec_Int_t *pScope,
                               Vec_Int_t *pRandomReverse) {
   s->pPerf->current_type = Quantifier_Random;
+  if (s->pPerf->fDone) return;
   t_start = gettime();
   ssat_solver_randomelim(s, pScope, pRandomReverse);
   t_end = gettime();
@@ -87,6 +88,7 @@ static void ssat_solve_random(ssat_solver *s, Vec_Int_t *pScope,
 
 static void ssat_solve_exist(ssat_solver *s, Vec_Int_t *pScope) {
   t_start = gettime();
+  if (s->pPerf->fDone) return;
   s->pPerf->current_type = Quantifier_Exist;
   ssat_solver_existelim(s, pScope);
   t_end = gettime();
