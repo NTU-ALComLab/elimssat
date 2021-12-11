@@ -69,7 +69,7 @@ def main(argv):
         clauses = rewrite_clause(key, new_var, op, clauses)
     
     print(len(clauses))
-    if len(clauses) > 150000: exit(1)
+    if len(clauses) > 100000: exit(1)
     print('Conversion time = %s' % (time.time() - start))
 
     f = open(outfile, 'r')
