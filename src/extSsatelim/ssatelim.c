@@ -46,8 +46,6 @@ static void ssat_print_perf(ssat_solver *s) {
   printf("==== elimssat profiling ====\n");
   if (!s->pPerf->fDone) {
     printf("  > Solving not finish!\n");
-    printf("  > Number of eliminated quantifier     = %d\n",
-           s->pPerf->nExpanded);
     printf("  > Working on the quantifier type of   = %d\n",
            s->pPerf->current_type);
     t_end = gettime();
@@ -58,6 +56,7 @@ static void ssat_print_perf(ssat_solver *s) {
     }
   }
   printf("\n");
+  printf("  > Number of eliminated quantifier     = %d\n", s->pPerf->nExpanded);
   printf("  > Time consumed on exist elimination  = %lf\n", s->pPerf->tExists);
   printf("  > Time consumed on random elimination = %lf\n", s->pPerf->tRandom);
 }
@@ -183,8 +182,7 @@ void ssat_parser_finished_process(ssat_solver *s) {
   ssat_build_bdd(s);
   ssat_quatification_check(s);
   // perform manthan on the original cnf if the network is small enough
-  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist &&
-      Abc_NtkNodeNum(s->pNtk) > 5000) {
+  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
     if (s->verbose) {
       Abc_Print(1, "> exist on original cnf\n");
     }
@@ -193,6 +191,7 @@ void ssat_parser_finished_process(ssat_solver *s) {
     ssat_solver_existouter(s, "tmp/temp.sdimacs");
     t_end = gettime();
     s->pPerf->tExists += tdiff(t_start, t_end);
+    s->pPerf->nExpanded += 1;
     Vec_IntPop(s->pQuanType);
     Vec_PtrPop(s->pQuan);
     Vec_FltPop(s->pQuanWeight);

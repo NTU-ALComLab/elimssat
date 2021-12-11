@@ -117,14 +117,16 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   //   Abc_Print(1, "> Calling manthan done\n");
   // }
   // Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
-  // Abc_Ntk_t *pSkolemSyn = Abc_NtkDC2(pSkolem, 0, 0, 1, 0, 0);
-  // Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolemSyn, vForalls, vExists);
+  // pSkolem = Util_NtkDc2(pSkolem, 1);
+  // pSkolem = Util_NtkResyn2(pSkolem, 1);
+  // pSkolem = Util_NtkDFraig(pSkolem, 1);
+  // Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolem, vForalls, vExists);
   Util_CallProcess("bin/cadet", s->verbose, "bin/cadet", "-e", "tmp/temp_skolem.aig",
                    "tmp/temp.qdimacs", NULL);
   Abc_Ntk_t *pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
   pSkolem = Util_NtkDc2(pSkolem, 1);
   pSkolem = Util_NtkResyn2(pSkolem, 1);
-  pSkolem = Util_NtkDFraig(pSkolem, 1);
+  // pSkolem = Util_NtkDFraig(pSkolem, 1);
   Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolem);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;
