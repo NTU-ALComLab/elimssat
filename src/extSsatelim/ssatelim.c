@@ -227,6 +227,8 @@ int ssat_solver_solve2(ssat_solver *s) {
 }
 
 void ssat_main(char *filename, int fVerbose) {
+  signal(SIGINT, ssat_sighandler);
+  signal(SIGTERM, ssat_sighandler);
   _solver = ssat_solver_new();
   _solver->verbose = fVerbose;
   if (!Util_CallProcess("python3", _solver->verbose, "python3", "script/general05.py",
@@ -234,7 +236,6 @@ void ssat_main(char *filename, int fVerbose) {
     Util_CallProcess("python3", _solver->verbose, "python3", "script/wmcrewriting2.py",
                       filename, "tmp/temp.sdimacs", NULL);
   }
-  signal(SIGINT, ssat_sighandler);
 
   // open file
   ssat_Parser(_solver, "tmp/temp.sdimacs");
