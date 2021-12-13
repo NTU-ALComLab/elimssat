@@ -36,7 +36,7 @@ TEST_CASE( "network in ssat solver", "[ssatelim]" )
     ssat_solver_setnvars(s, 1);
     int a = 1;
     ssat_addrandom(s, &a, &a + 1, 0.5);
-    ssat_parser_finished_process(s);
+    // ssat_parser_finished_process(s);
 
     REQUIRE( Util_NtkIsEqual(s->pNtk, pNtkConst) == 1 );
     
@@ -50,7 +50,7 @@ TEST_CASE( "network in ssat solver", "[ssatelim]" )
     ssat_addrandom(s, &a, &a + 1, 0.5);
     ssat_addclause(s, &a, &a);
 
-    ssat_parser_finished_process(s);
+    // ssat_parser_finished_process(s);
 
     REQUIRE( Util_NtkIsEqual(s->pNtk, pNtkConst) == 1 );
     
