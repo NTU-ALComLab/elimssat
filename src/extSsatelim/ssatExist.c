@@ -126,7 +126,7 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   Abc_Ntk_t *pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
   pSkolem = Util_NtkDc2(pSkolem, 1);
   pSkolem = Util_NtkResyn2(pSkolem, 1);
-  // pSkolem = Util_NtkDFraig(pSkolem, 1);
+  pSkolem = Util_NtkDFraig(pSkolem, 1);
   Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolem);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;

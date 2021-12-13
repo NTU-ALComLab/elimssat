@@ -96,7 +96,7 @@ extern int ssatelim_init_function();
 extern void ssat_main(char * filename, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
-extern void ssat_parser_finished_process(ssat_solver* s);
+extern void ssat_parser_finished_process(ssat_solver* s, char * filename);
 extern int ssat_solver_solve2(ssat_solver* s);
 extern double ssat_result(ssat_solver* s);
 

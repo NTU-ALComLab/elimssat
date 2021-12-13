@@ -170,9 +170,10 @@ static void ssat_quatification_check(ssat_solver *s) {
       Vec_IntPush(s->pUnQuan, index);
     }
   }
+  assert(Vec_IntSize(s->pUnQuan) == 0);
 }
 
-void ssat_parser_finished_process(ssat_solver *s) {
+void ssat_parser_finished_process(ssat_solver *s, char *filename) {
   // Connect the output
   Abc_ObjAddFanin(Abc_NtkPo(s->pNtk, 0), s->pPo);
   s->pNtk = Util_NtkStrash(s->pNtk, 1);
@@ -188,7 +189,7 @@ void ssat_parser_finished_process(ssat_solver *s) {
     }
     s->pPerf->current_type = Quantifier_Exist;
     t_start = gettime();
-    ssat_solver_existouter(s, "tmp/temp.sdimacs");
+    ssat_solver_existouter(s, filename);
     t_end = gettime();
     s->pPerf->tExists += tdiff(t_start, t_end);
     s->pPerf->nExpanded += 1;
@@ -203,6 +204,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
+    // if (i == 0 && type == Quantifier_Exist && !s->useBdd) break;
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
     if (s->verbose) {
       Abc_Print(1, "> level %d, quantifier type %s, %d element\n", i,
@@ -215,9 +217,6 @@ int ssat_solver_solve2(ssat_solver *s) {
       ssat_solve_random(s, pScope, pRandomReverse);
     }
     ssat_solve_afterelim(s);
-  }
-  if (Vec_IntSize(s->pUnQuan)) {
-    ssat_solve_exist(s, s->pUnQuan);
   }
   // count the final result
   ssat_randomCompute(s, pRandomReverse);
@@ -239,7 +238,7 @@ void ssat_main(char *filename, int fVerbose) {
 
   // open file
   ssat_Parser(_solver, "tmp/temp.sdimacs");
-  ssat_parser_finished_process(_solver);
+  ssat_parser_finished_process(_solver, "tmp/temp.sdimacs");
   ssat_check_const(_solver);
   int result = ssat_solver_solve2(_solver);
 

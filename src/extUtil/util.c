@@ -1547,6 +1547,7 @@ int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
     }
     signal(SIGINT, SIG_DFL);
   }
+  return 1;
 }
 
 /**Function*************************************************************
