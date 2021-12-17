@@ -29,7 +29,6 @@ ABC_NAMESPACE_IMPL_START
 ///                     FUNCTION DEFINITIONS                         ///
 ////////////////////////////////////////////////////////////////////////
 extern "C" DdNode * ExistQuantify(DdManager * dd, DdNode * bFunc, Vec_Int_t * pPiIndex);
-DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope);
 
 // use poinrter to pointer of DdManager because sorting function would change
 // the reference pointer
@@ -160,9 +159,6 @@ Abc_Ntk_t * random_eliminate_reverse_one_pi2(Abc_Ntk_t * pNtk, Vec_Int_t * pScop
 
   Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObjAnd, pObjOr);
   Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
-  pNtkNew = Util_NtkDFraig(pNtkNew, 1);
-  pNtkNew = Util_NtkDc2(pNtkNew, 1);
-  pNtkNew = Util_NtkResyn2(pNtkNew, 1);
 
   return pNtkNew;
 }
@@ -378,16 +374,13 @@ Abc_Ntk_t * Util_function_sort_Bitonic2(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReve
   int entry;
   Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
   {
-    Abc_Print(1, "[DEBUG] working on %d/%d variables\n", index+1, pScopeReverse->nSize);
-    fflush(stdout);
     if (index == 0)
       break;
     pNtkNew = random_eliminate_reverse_one_pi2(pNtkOld, pScopeReverse, index - 1);
     Abc_NtkDelete(pNtkOld);
-    Abc_Print(1, "[DEBUG] Object Number of current network: %d\n", Abc_NtkNodeNum(pNtkNew));
     pNtkOld = pNtkNew;
   }
-  Abc_Print(1, "\n");
+  printf("bitonic done\n");
   return pNtkNew;
 }
 
@@ -455,6 +448,14 @@ Abc_Ntk_t * Util_FunctionSort_2(Abc_Ntk_t * pNtk, Vec_Int_t * pScope)
     {
         Vec_IntPush(pScopeReverse, entry);
         pNtk = Util_function_sort_Bitonic2(pNtk, pScopeReverse);
+        // pNtk = Util_NtkDc2(pNtk, 1);
+        assert(Abc_AigCheck((Abc_Aig_t *)pNtk->pManFunc));
+        Abc_AigCleanup((Abc_Aig_t *)pNtk->pManFunc);
+        pNtk = Util_NtkDFraig(pNtk, 1);
+        pNtk = Util_NtkDc2(pNtk, 1);
+        pNtk = Util_NtkResyn2(pNtk, 1);
+        Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
+            Vec_IntSize(pScope)-index, Vec_IntSize(pScope), Abc_NtkNodeNum(pNtk));
     }
     return pNtk;
 }
@@ -506,7 +507,7 @@ DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
       bFunc = block(*dd, bFunc, pScopeReverse);
       Cudd_Ref( bFunc );
       Cudd_RecursiveDeref( *dd, ptemp );
-      int lev = Cudd_ReadPerm(*dd, entry);
+      // int lev = Cudd_ReadPerm(*dd, entry);
       // Abc_Print(1, "[DEBUG] Before => The level for variable %d: %d\n", entry, lev);
       // Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
       // Abc_Print(1, "[DEBUG] Before => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
@@ -514,7 +515,7 @@ DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
       bFunc = sorting_reorder(ddNew, *dd, bFunc, entry, target_level);
       target_level++;
       *dd = ddNew;
-      lev = Cudd_ReadPerm(*dd, entry);
+      // lev = Cudd_ReadPerm(*dd, entry);
       // Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
       // Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
       // Abc_Print(1, "[DEBUG] Object Number of current network: %d\n", Cudd_DagSize(bFunc));
@@ -554,7 +555,7 @@ extern "C" DdNode * RandomQuantifyReverse(DdManager ** dd, DdNode * bFunc, Vec_I
   {
       Vec_IntPush(pScope, entry);
   }
-  bFunc = RandomQuantify(dd, bFunc, pScope);
+  bFunc = sort(dd, bFunc, pScope);
   Vec_IntFree(pScope);
   return bFunc;
 }

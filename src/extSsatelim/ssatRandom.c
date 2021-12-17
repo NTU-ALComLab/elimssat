@@ -13,7 +13,7 @@ static int bit0_is_1(unsigned int bitset) {
   return (Util_BitSet_getValue(&bitset, 0) == 1);
 }
 static int bit1_is_0(unsigned int bitset) {
-  return (Util_BitSet_getValue(&bitset, 1) == 0);
+  return (Util_BitSet_getValue(&bitset, 0) == 0);
 }
 
 static void Model_setPos1ValueAs1(Abc_Ntk_t *pNtk) {
@@ -30,35 +30,50 @@ static double ratio_counting(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
   double ret = 0;
   int index;
   int entry;
+  double count = 1;
+  double total = pow(2, Vec_IntSize(pRandom));
+  int i = 0;
   Vec_IntForEachEntryReverse(pRandom, entry, index) {
     const int pModelValue = pNtk->pModel[entry];
-    if (!pModelValue) {
-      ret += 1;
+    if (pModelValue) {
+      count += pow(2, i);
     }
-    ret /= (double)2;
+    i++;
   }
+  ret = (total - count) / total;
   return ret;
 }
 
-static unsigned int simulateTrivialCases(Abc_Ntk_t *pNtk) {
+static unsigned int simulateTrivialCases(Abc_Ntk_t *pNtk, int value) {
   // trivial cases
   // set [0] bit as 0
-  Util_SetCiModelAs0(pNtk);
-  // set [1] bit as 1
-  Model_setPos1ValueAs1(pNtk);
+  if (!value) {
+    Util_SetCiModelAs0(pNtk);
+  } else {
+    Util_SetCiModelAs1(pNtk);
+  }
 
   return Util_NtkSimulate(pNtk);
 }
 
 static Abc_Ntk_t *random_eliminate_scope(Abc_Ntk_t *pNtk, Vec_Int_t *pScopeReverse) {
-  return Util_FunctionSortSeq(pNtk, pScopeReverse);
+  Vec_Int_t * pScope = Vec_IntAlloc(0);
+  int index;
+  int entry;
+  Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
+  {
+      Vec_IntPush(pScope, entry);
+  }
+  pNtk = Util_FunctionSort(pNtk, pScope);
+  Vec_IntFree(pScope);
+  return pNtk;
 }
 
 void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
   int index;
   int entry;
-  Vec_IntForEachEntryReverse(pScope, entry, index) {
+  Vec_IntForEachEntry(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
   if (s->useBdd) {
@@ -73,7 +88,7 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
   }
-  Abc_NtkCheck(s->pNtk);
+  // Abc_NtkCheck(s->pNtk);
   Vec_Int_t *pRandom = Vec_IntAlloc(0);
   {
     int index;
@@ -87,7 +102,7 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     pNtk = Abc_NtkStrash(s->pNtk, 0, 0, 0);
 
   Util_NtkModelAlloc(pNtk);
-  unsigned int simulated_result = simulateTrivialCases(pNtk);
+  unsigned int simulated_result = simulateTrivialCases(pNtk, 0);
   if (bit0_is_1(simulated_result)) {
     if (s->verbose) {
       Abc_Print(1, "F equals const 1\n");
@@ -96,6 +111,7 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     Vec_IntFree(pRandom);
     return;
   }
+  simulated_result = simulateTrivialCases(pNtk, 1);
   if (bit1_is_0(simulated_result)) {
     if (s->verbose) {
       Abc_Print(1, "F equals const 0\n");
