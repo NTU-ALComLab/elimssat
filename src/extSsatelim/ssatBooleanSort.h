@@ -41,22 +41,10 @@ ABC_NAMESPACE_HEADER_START
 ///                    FUNCTION DECLARATIONS                         ///
 ////////////////////////////////////////////////////////////////////////
 
-extern Abc_Ntk_t * Util_FunctionSortSeq(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse);
-extern Abc_Ntk_t * Util_FunctionSort(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse);
-extern Abc_Ntk_t * Util_FunctionSortSeq_Select(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse, int method);
-extern Abc_Ntk_t * Util_FunctionSort_Select(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse, int method);
+extern Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse);
+extern DdNode * Util_sortBitonicBDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse);
+extern DdNode *ssat_BDDReorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, int target_var, int target_level);
 
-
-extern Abc_Ntk_t * Util_FunctionSort_1bit( Abc_Ntk_t * pNtk, Vec_Int_t * pScope, int index_var );
-extern Abc_Ntk_t * Util_FunctionSort_allbit( Abc_Ntk_t * pNtk, Vec_Int_t * pScope);
-extern Abc_Ntk_t * Util_FunctionSort_block( Abc_Ntk_t * pNtk, Vec_Int_t * pScope );
-extern Abc_Ntk_t * Util_NtkRandomQuantifyPis_BDD( Abc_Ntk_t * pNtk, Vec_Int_t * pScope );
-extern Abc_Ntk_t * Util_NtkExistRandomQuantifyPis_BDD( Abc_Ntk_t * pNtk, Vec_Int_t * pScopeE, Vec_Int_t * pScopeR );
-
-extern DdNode * block(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse);
-extern DdNode * random_eliminate_reverse_all_bit2_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse);
-extern Abc_Ntk_t * random_eliminate_reverse_all_bit2(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse);
-extern DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope);
 
 ABC_NAMESPACE_HEADER_END
 #endif

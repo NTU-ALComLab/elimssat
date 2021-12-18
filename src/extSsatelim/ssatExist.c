@@ -134,7 +134,7 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   Vec_IntFree(vExists);
   Vec_IntFree(vForalls);
   ssat_synthesis(s);
-  // if (!s->useBdd) {
-  //   ssat_build_bdd(s);
-  // }
+  if (!s->useBdd) {
+    ssat_build_bdd(s);
+  }
 }

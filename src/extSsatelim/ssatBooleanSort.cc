@@ -28,112 +28,34 @@ ABC_NAMESPACE_IMPL_START
 ////////////////////////////////////////////////////////////////////////
 ///                     FUNCTION DEFINITIONS                         ///
 ////////////////////////////////////////////////////////////////////////
-extern "C" DdNode * ExistQuantify(DdManager * dd, DdNode * bFunc, Vec_Int_t * pPiIndex);
+static DdNode * random_eliminate_reverse_one_pi_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope, int index_var);
+static DdNode * random_eliminate_reverse_all_bit_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse);
 
-// use poinrter to pointer of DdManager because sorting function would change
-// the reference pointer
-extern "C" DdNode * RandomQuantify(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
+DdNode * Util_sortBitonicBDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
 {
-  Cudd_AutodynDisable(*dd);
-  return sort(dd, bFunc, pScope);
-}
+  DdNode * ptemp;
 
-/**Function*************************************************************
-  Synopsis    []
-  Description []
-               
-  SideEffects []
-  SeeAlso     []
-***********************************************************************/
-Abc_Ntk_t * random_eliminate_reverse_one_pi(Abc_Ntk_t * pNtk, Vec_Int_t * pScope, int index_var)
-{
-  Abc_Ntk_t * pNtkNew = Util_NtkAllocStrashWithName("ssat");
-  Util_NtkCreatePiFrom( pNtkNew, pNtk, NULL );
-  Util_NtkCreatePoWithName( pNtkNew, "out", NULL );
-  Util_NtkConst1SetCopy( pNtk, pNtkNew );
-  Util_NtkPiSetCopy    ( pNtk, pNtkNew, 0 );
+  Cudd_Ref( bFunc );
+  ptemp = bFunc;
+  bFunc = random_eliminate_reverse_all_bit_BDD(dd, bFunc, pScopeReverse);
+  Cudd_Ref( bFunc );
+  Cudd_RecursiveDeref( dd, ptemp );
 
-  Abc_Obj_t * pPhasePositive = Util_NtkAppend(pNtkNew, pNtk);
-  int entry = Vec_IntEntry(pScope, index_var);
-  Abc_NtkPi(pNtk, entry)->pCopy = Abc_ObjNot( Abc_NtkPi(pNtkNew, entry) );
-  Abc_Obj_t * pPhaseNegative = Util_NtkAppend(pNtkNew, pNtk);
-
-  Abc_Obj_t * pObjAnd = Util_AigNtkAnd(pNtkNew, pPhasePositive, pPhaseNegative);
-              pObjAnd = Util_AigNtkAnd(pNtkNew, pObjAnd,  Abc_ObjNot(Abc_NtkPi(pNtkNew, entry)) );
-
-  Abc_Obj_t * pObjOr = Util_AigNtkOr(pNtkNew, pPhasePositive, pPhaseNegative);
-              pObjOr = Util_AigNtkAnd(pNtkNew, pObjOr, Abc_NtkPi(pNtkNew, entry));
-
-  Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObjAnd, pObjOr);
-  Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
-
-  return pNtkNew;
-}
-
-Abc_Ntk_t * random_eliminate_reverse_all_bit(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
-{
-  Abc_Ntk_t * pNtkNew = Util_NtkAllocStrashWithName("ssat");
-  Util_NtkCreatePiFrom( pNtkNew, pNtk, NULL );
-  Util_NtkCreatePoWithName( pNtkNew, "out", NULL );
-  Util_NtkConst1SetCopy( pNtk, pNtkNew );
-  Util_NtkPiSetCopy    ( pNtk, pNtkNew, 0 );
-  
-  Abc_Obj_t * pPhasePositive = Util_NtkAppend(pNtkNew, pNtk);
-  int index;
-  int entry;
-  Vec_IntForEachEntry( pScopeReverse, entry, index )
-  {
-    Abc_NtkPi(pNtk, entry)->pCopy = Abc_ObjNot( Abc_NtkPi(pNtkNew, entry) );
-  }
-  Abc_Obj_t * pPhaseNegative = Util_NtkAppend(pNtkNew, pNtk);
-
-  int pi_index = Vec_IntEntryLast(pScopeReverse);
-  Abc_Obj_t * pObjAnd = Util_AigNtkAnd(pNtkNew, pPhasePositive, pPhaseNegative);
-              pObjAnd = Util_AigNtkAnd(pNtkNew, pObjAnd, Abc_ObjNot(Abc_NtkPi(pNtkNew, pi_index)) );
-
-  Abc_Obj_t * pObjOr = Util_AigNtkOr(pNtkNew, pPhasePositive, pPhaseNegative);
-              pObjOr = Util_AigNtkAnd(pNtkNew, pObjOr, Abc_NtkPi(pNtkNew, pi_index));
-
-  Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObjAnd, pObjOr);
-  Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
-
-  return pNtkNew;
-}
-
-Abc_Ntk_t * Util_function_sort_Bitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
-{
-  Abc_Ntk_t * pNtkOld = pNtk;
-  Abc_Ntk_t * pNtkNew = pNtk;
-  pNtkNew = random_eliminate_reverse_all_bit(pNtkOld, pScopeReverse);
-  Abc_NtkDelete(pNtkOld);
-  pNtkOld = pNtkNew;
   int index;
   int entry;
   Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
   {
     if (index == 0)
       break;
-    pNtkNew = random_eliminate_reverse_one_pi(pNtkOld, pScopeReverse, index - 1);
-    Abc_NtkDelete(pNtkOld);
-    pNtkOld = pNtkNew;
+    ptemp = bFunc;
+    bFunc = random_eliminate_reverse_one_pi_BDD(dd, bFunc, pScopeReverse, index - 1);
+    Cudd_Ref( bFunc );
+    Cudd_RecursiveDeref( dd, ptemp );
   }
-  return pNtkNew;
+  Cudd_Deref( bFunc );
+  return bFunc;
 }
 
-Abc_Ntk_t * Util_FunctionSort_1(Abc_Ntk_t * pNtk, Vec_Int_t * pScope)
-{
-    Vec_Int_t * pScopeReverse = Vec_IntAlloc(0);
-    int index;
-    int entry;
-    Vec_IntForEachEntryReverse( pScope, entry, index )
-    {
-        Vec_IntPush(pScopeReverse, entry);
-        pNtk = Util_function_sort_Bitonic(pNtk, pScopeReverse);
-    }
-    return pNtk;
-}
-
-//=================================================
 Abc_Ntk_t * random_eliminate_reverse_one_pi2(Abc_Ntk_t * pNtk, Vec_Int_t * pScope, int index_var)
 {
   Abc_Ntk_t * pNtkNew = Util_NtkAllocStrashWithName("ssat");
@@ -164,7 +86,7 @@ Abc_Ntk_t * random_eliminate_reverse_one_pi2(Abc_Ntk_t * pNtk, Vec_Int_t * pScop
 }
 
 // Xv * f(Xv = 0) * f(Xv = 1) + (-Xv) * ( f(Xv = 0) + f(Xv = 1) )
-DdNode * random_eliminate_reverse_one_pi2_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope, int index_var)
+static DdNode * random_eliminate_reverse_one_pi_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScope, int index_var)
 {
   DdNode * pTemp;
   Cudd_Ref( bFunc );
@@ -198,24 +120,6 @@ DdNode * random_eliminate_reverse_one_pi2_BDD(DdManager * dd, DdNode * bFunc, Ve
   Cudd_RecursiveDeref( dd, Cudd_Not(var));
   Cudd_Deref(pExist);
   return pExist;
-}
-
-Abc_Ntk_t * Util_FunctionSort_1bit( Abc_Ntk_t * pNtk, Vec_Int_t * pScope, int index_var )
-{
-  if (!Abc_NtkIsBddLogic(pNtk))
-    return NULL;
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  // int fDualRail = 0;
-  int fBddSizeMax = ABC_INFINITY;
-
-  pNtk = Abc_NtkStrash( pNtk, 0, 0, 0 );
-  DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose) ;
-  DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(pNtk, 0));
-
-  bFunc = random_eliminate_reverse_one_pi2_BDD(dd, bFunc, pScope, index_var);
-  return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
 }
 
 Abc_Ntk_t * random_eliminate_reverse_all_bit2(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
@@ -254,7 +158,7 @@ Abc_Ntk_t * random_eliminate_reverse_all_bit2(Abc_Ntk_t * pNtk, Vec_Int_t * pSco
   return pNtkNew;
 }
 
-DdNode * random_eliminate_reverse_all_bit2_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
+DdNode * random_eliminate_reverse_all_bit_BDD(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
 {
   DdNode * ptemp;
 
@@ -335,35 +239,7 @@ DdNode * random_eliminate_reverse_all_bit2_BDD(DdManager * dd, DdNode * bFunc, V
   return pObjOr;
 }
 
-Abc_Ntk_t * Util_FunctionSort_allbit( Abc_Ntk_t * pNtk, Vec_Int_t * pScope)
-{
-  if (!Abc_NtkIsBddLogic(pNtk))
-    return NULL;
-
-  Vec_Int_t * pScopeReverse = Vec_IntAlloc(0);
-  int index;
-  int entry;
-  Vec_IntForEachEntryReverse( pScope, entry, index )
-  {
-    Vec_IntPush(pScopeReverse, entry);
-  }
-
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  // int fDualRail = 0;
-  int fBddSizeMax = ABC_INFINITY;
-
-  pNtk = Abc_NtkStrash( pNtk, 0, 0, 0 );
-  DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose) ;
-  DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(pNtk, 0));
-
-  bFunc = random_eliminate_reverse_all_bit2_BDD(dd, bFunc, pScopeReverse);
-  Vec_IntFree(pScopeReverse);
-  return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
-}
-
-Abc_Ntk_t * Util_function_sort_Bitonic2(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
+Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
 {
   Abc_Ntk_t * pNtkOld = pNtk;
   Abc_Ntk_t * pNtkNew = pNtk;
@@ -380,87 +256,11 @@ Abc_Ntk_t * Util_function_sort_Bitonic2(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReve
     Abc_NtkDelete(pNtkOld);
     pNtkOld = pNtkNew;
   }
-  printf("bitonic done\n");
   return pNtkNew;
 }
 
-DdNode * block(DdManager * dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
-{
-  DdNode * ptemp;
 
-  Cudd_Ref( bFunc );
-  ptemp = bFunc;
-  bFunc = random_eliminate_reverse_all_bit2_BDD(dd, bFunc, pScopeReverse);
-  Cudd_Ref( bFunc );
-  Cudd_RecursiveDeref( dd, ptemp );
-
-  int index;
-  int entry;
-  Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
-  {
-    if (index == 0)
-      break;
-    ptemp = bFunc;
-    bFunc = random_eliminate_reverse_one_pi2_BDD(dd, bFunc, pScopeReverse, index - 1);
-    Cudd_Ref( bFunc );
-    Cudd_RecursiveDeref( dd, ptemp );
-  }
-  Cudd_Deref( bFunc );
-  return bFunc;
-}
-
-Abc_Ntk_t * Util_FunctionSort_block( Abc_Ntk_t * pNtk, Vec_Int_t * pScope )
-{
-  if (!Abc_NtkIsBddLogic(pNtk))
-    return NULL;
-
-  Vec_Int_t * pScopeReverse = Vec_IntAlloc(0);
-  int index;
-  int entry;
-  Vec_IntForEachEntryReverse( pScope, entry, index )
-  {
-    Vec_IntPush(pScopeReverse, entry);
-  }
-
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  // int fDualRail = 0;
-  int fBddSizeMax = ABC_INFINITY;
-
-  pNtk = Abc_NtkStrash( pNtk, 0, 0, 0 );
-  
-  DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose);
-  // DdManager * dd = (DdManager *)Abc_NtkGlobalBdd(pNtk);
-  DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(pNtk, 0));
-
-  bFunc = block(dd, bFunc, pScopeReverse);
-  Vec_IntFree(pScopeReverse);
-  return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
-}
-
-Abc_Ntk_t * Util_FunctionSort_2(Abc_Ntk_t * pNtk, Vec_Int_t * pScope)
-{
-    Vec_Int_t * pScopeReverse = Vec_IntAlloc(0);
-    int index;
-    int entry;
-    Vec_IntForEachEntryReverse( pScope, entry, index )
-    {
-        Vec_IntPush(pScopeReverse, entry);
-        pNtk = Util_function_sort_Bitonic2(pNtk, pScopeReverse);
-        // pNtk = Util_NtkDc2(pNtk, 1);
-        assert(Abc_AigCheck((Abc_Aig_t *)pNtk->pManFunc));
-        Abc_AigCleanup((Abc_Aig_t *)pNtk->pManFunc);
-        pNtk = Util_NtkDFraig(pNtk, 1);
-        pNtk = Util_NtkDc2(pNtk, 1);
-        pNtk = Util_NtkResyn2(pNtk, 1);
-        Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
-            Vec_IntSize(pScope)-index, Vec_IntSize(pScope), Abc_NtkNodeNum(pNtk));
-    }
-    return pNtk;
-}
-
-static DdNode *sorting_reorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, int target_var, int target_level) {
+DdNode *ssat_BDDReorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, int target_var, int target_level) {
   int bdd_perm[dd->size];
   int lev = Cudd_ReadPerm(dd, target_var);
   if (target_level < lev) {
@@ -487,110 +287,10 @@ static DdNode *sorting_reorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, 
   Cudd_ShuffleHeap( ddNew, bdd_perm );
   DdNode *bFuncNew = Cudd_bddTransfer( dd, ddNew, bFunc );
   Cudd_Ref( bFuncNew );
+  Cudd_RecursiveDeref(dd, bFunc);
   Cudd_Quit(dd);
   Cudd_ReduceHeap(ddNew, CUDD_REORDER_EXACT, 10000);
   return bFuncNew;
-}
-
-DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
-{
-  DdNode * ptemp;
-  Cudd_Ref( bFunc );
-  Vec_Int_t * pScopeReverse = Vec_IntAlloc(0);
-  int index;
-  int entry;
-  int target_level = 0;
-  Vec_IntForEachEntryReverse( pScope, entry, index )
-  {
-      Vec_IntPush(pScopeReverse, entry);
-      ptemp = bFunc;
-      bFunc = block(*dd, bFunc, pScopeReverse);
-      Cudd_Ref( bFunc );
-      Cudd_RecursiveDeref( *dd, ptemp );
-      // int lev = Cudd_ReadPerm(*dd, entry);
-      // Abc_Print(1, "[DEBUG] Before => The level for variable %d: %d\n", entry, lev);
-      // Abc_Print(1, "[DEBUG] Before => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
-      // Abc_Print(1, "[DEBUG] Before => Object Number of current network: %d\n", Cudd_DagSize(bFunc));
-      DdManager *ddNew = Cudd_Init( (*dd)->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0 );
-      bFunc = sorting_reorder(ddNew, *dd, bFunc, entry, target_level);
-      target_level++;
-      *dd = ddNew;
-      // lev = Cudd_ReadPerm(*dd, entry);
-      // Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
-      // Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
-      // Abc_Print(1, "[DEBUG] Object Number of current network: %d\n", Cudd_DagSize(bFunc));
-  }
-  Vec_IntFree(pScopeReverse);
-  Cudd_Deref( bFunc );
-  return bFunc;
-}
-
-Abc_Ntk_t * Util_NtkRandomQuantifyPis_BDD( Abc_Ntk_t * pNtk, Vec_Int_t * pScope )
-{
-  if (!Abc_NtkIsBddLogic(pNtk))
-    return NULL;
-  // Abc_Print( 1, "Util_NtkRandomQuantifyPis_BDD\n" ); 
-  int fVerbose = 0;
-  int fReorder = 1;
-  int fReverse = 0;
-  // int fDualRail = 0;
-  int fBddSizeMax = ABC_INFINITY;
-
-  pNtk = Abc_NtkStrash( pNtk, 0, 0, 0 );
-  DdManager * dd = (DdManager *)Abc_NtkBuildGlobalBdds(pNtk, fBddSizeMax, 1, fReorder, fReverse, fVerbose) ;
-  DdNode * bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkPo(pNtk, 0));
-
-  bFunc = sort(&dd, bFunc, pScope);
-
-  // Abc_Print( 1, "Util_NtkRandomQuantifyPis_BDD\n" ); 
-  return Abc_NtkDeriveFromBdd( dd, bFunc, NULL, NULL );
-}
-
-extern "C" DdNode * RandomQuantifyReverse(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScopeReverse)
-{
-  Vec_Int_t * pScope = Vec_IntAlloc(0);
-  int index;
-  int entry;
-  Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
-  {
-      Vec_IntPush(pScope, entry);
-  }
-  bFunc = sort(dd, bFunc, pScope);
-  Vec_IntFree(pScope);
-  return bFunc;
-}
-
-//=================================================
-Abc_Ntk_t * Util_FunctionSortSeq(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
-{
-    return Util_FunctionSortSeq_Select(pNtk, pScopeReverse, 2);
-}
-
-Abc_Ntk_t * Util_FunctionSort(Abc_Ntk_t * pNtk, Vec_Int_t * pScope)
-{
-    return Util_FunctionSort_Select(pNtk, pScope, 2);
-}
-
-Abc_Ntk_t * Util_FunctionSortSeq_Select(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse, int method)
-{
-    if (method == 1)
-        return Util_function_sort_Bitonic(pNtk, pScopeReverse);
-    if (method == 2)
-        return Util_function_sort_Bitonic2(pNtk, pScopeReverse);
-    
-    Abc_Print( 1, "method %d is not existed\n", method );
-    return NULL;
-}
-
-Abc_Ntk_t * Util_FunctionSort_Select(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse, int method)
-{
-    if (method == 1)
-        return Util_FunctionSort_1(pNtk, pScopeReverse);
-    if (method == 2)
-        return Util_FunctionSort_2(pNtk, pScopeReverse);
-
-    Abc_Print( 1, "method %d is not existed\n", method );
-    return NULL;
 }
 
 ABC_NAMESPACE_IMPL_END

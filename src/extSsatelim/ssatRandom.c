@@ -1,13 +1,7 @@
-#include "ssatelim.h"
-#include "ssatBooleanSort.h"
+#include "bdd/extrab/extraBdd.h" //
 #include "extUtil/util.h"
-
-// extSsatelim/ssatBooleanSort.cc
-extern DdNode *RandomQuantify(DdManager *dd, DdNode *bFunc, Vec_Int_t *pScope);
-extern DdNode *RandomQuantifyReverse(DdManager **dd, DdNode *bFunc,
-                                     Vec_Int_t *pScopeReverse);
-
-
+#include "ssatBooleanSort.h"
+#include "ssatelim.h"
 
 static int bit0_is_1(unsigned int bitset) {
   return (Util_BitSet_getValue(&bitset, 0) == 1);
@@ -56,34 +50,52 @@ static unsigned int simulateTrivialCases(Abc_Ntk_t *pNtk, int value) {
   return Util_NtkSimulate(pNtk);
 }
 
-static Abc_Ntk_t *random_eliminate_scope(Abc_Ntk_t *pNtk, Vec_Int_t *pScopeReverse) {
-  Vec_Int_t * pScope = Vec_IntAlloc(0);
-  int index;
-  int entry;
-  Vec_IntForEachEntryReverse( pScopeReverse, entry, index )
-  {
-      Vec_IntPush(pScope, entry);
-  }
-  pNtk = Util_FunctionSort(pNtk, pScope);
-  Vec_IntFree(pScope);
-  return pNtk;
-}
-
 void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
   int index;
   int entry;
-  Vec_IntForEachEntry(pScope, entry, index) {
+  Vec_IntForEachEntryReverse(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
+  Vec_Int_t *pSort = Vec_IntAlloc(0);
   if (s->useBdd) {
-    s->bFunc = RandomQuantifyReverse(&s->dd, s->bFunc, pRandomReverse);
-  } else
-    s->pNtk = random_eliminate_scope(s->pNtk, pRandomReverse);
+    Cudd_AutodynDisable(s->dd);
+  }
+  Vec_IntForEachEntry(pRandomReverse, entry, index) {
+    Vec_IntPush(pSort, entry);
+    if (s->useBdd) {
+      DdNode *ptemp = s->bFunc;
+      s->bFunc = Util_sortBitonicBDD(s->dd, s->bFunc, pSort);
+      Cudd_Ref(s->bFunc);
+      Cudd_RecursiveDeref(s->dd, ptemp);
+      DdManager *ddNew =
+          Cudd_Init(s->dd->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+      s->bFunc = ssat_BDDReorder(ddNew, s->dd, s->bFunc, entry, 0);
+      s->dd = ddNew;
+      if (s->verbose) {
+        Abc_Print(1, "[DEBUG] %d %d/%d Dag Size of current network: %d\n",
+                  entry, index + 1, Vec_IntSize(pRandomReverse),
+                  Cudd_DagSize(s->bFunc));
+      }
+    } else {
+      s->pNtk = Util_sortBitonic(s->pNtk, pSort);
+      Abc_AigCleanup((Abc_Aig_t *)s->pNtk->pManFunc);
+      s->pNtk = Util_NtkDFraig(s->pNtk, 1);
+      s->pNtk = Util_NtkDc2(s->pNtk, 1);
+      s->pNtk = Util_NtkResyn2(s->pNtk, 1);
+      if (s->verbose) {
+        Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
+                  index + 1, Vec_IntSize(pRandomReverse),
+                  Abc_NtkNodeNum(s->pNtk));
+      }
+    }
+  }
+  Vec_IntFree(pSort);
 }
 
 void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
-  if (s->pPerf->fDone) return;
+  if (s->pPerf->fDone)
+    return;
   if (s->useBdd) {
     s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
