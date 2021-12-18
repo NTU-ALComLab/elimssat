@@ -516,8 +516,10 @@ DdNode * sort(DdManager ** dd, DdNode * bFunc, Vec_Int_t * pScope)
       *dd = ddNew;
       lev = Cudd_ReadPerm(*dd, entry);
       // Abc_Print(1, "[DEBUG] After => The level for variable %d: %d\n", entry, lev);
-      // Abc_Print(1, "[DEBUG] After => Object Number of dd manager: %d\n", Cudd_ReadNodeCount(*dd));
-      // Abc_Print(1, "[DEBUG] Object Number of current network: %d\n", Cudd_DagSize(bFunc));
+      Abc_Print(1, "[DEBUG] %d/%d Dag Size of current network: %d\n",
+          index + 1, Vec_IntSize(pScope), Cudd_DagSize(bFunc));
+      Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
+          index + 1, Vec_IntSize(pScope), Cudd_ReadNodeCount(*dd));
   }
   Vec_IntFree(pScopeReverse);
   Cudd_Deref( bFunc );
