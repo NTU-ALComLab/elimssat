@@ -606,7 +606,7 @@ void Util_SetCiModelAs0( Abc_Ntk_t* pNtk )
 {
   Abc_Obj_t * pNode;
   int i;
-  Abc_NtkForEachCi( pNtk, pNode, i )
+  Abc_NtkForEachPi( pNtk, pNode, i )
     pNtk->pModel[i] = 0;
 }
 
@@ -614,7 +614,7 @@ void Util_SetCiModelAs1( Abc_Ntk_t* pNtk )
 {
   Abc_Obj_t * pNode;
   int i;
-  Abc_NtkForEachCi( pNtk, pNode, i )
+  Abc_NtkForEachPi( pNtk, pNode, i )
     pNtk->pModel[i] = (~0);
 }
 
@@ -679,9 +679,9 @@ void Util_MaxInputPatternWithOuputAs0( Abc_Ntk_t* pNtk, Vec_Int_t * pCaredPi )
   int entry;
   Vec_IntForEachEntry( pCaredPi, entry, index )
   {
-    pNtk->pModel[entry] = (~0);
-    const int simulated_result = Util_NtkSimulate(pNtk);
-    if (simulated_result)
+    pNtk->pModel[entry] = 1;
+    const int simulated_result = Util_NtkSimulate(pNtk) & (int)01;
+    if (simulated_result != 0)
     {
       pNtk->pModel[entry] = 0;
     }
