@@ -17,6 +17,7 @@
 #include "base/io/ioAbc.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
+#include <libgen.h>
 #include <signal.h>
 #include <zlib.h>
 
@@ -30,6 +31,12 @@ static const lbool l_Unsupp = -2;
 static ssat_solver *_solver;
 static void ssat_print_perf(ssat_solver *s);
 static fasttime_t t_start, t_end;
+
+static char *get_filename(char *filename) {
+  char *name = basename(filename);
+  char *ret = strtok(name, ".");
+  return ret;
+}
 
 void ssat_sighandler(int signal_number) {
   printf("\n");
@@ -78,7 +85,8 @@ static void ssat_check_const(ssat_solver *s) {
 static void ssat_solve_random(ssat_solver *s, Vec_Int_t *pScope,
                               Vec_Int_t *pRandomReverse) {
   s->pPerf->current_type = Quantifier_Random;
-  if (s->pPerf->fDone) return;
+  if (s->pPerf->fDone)
+    return;
   t_start = gettime();
   ssat_solver_randomelim(s, pScope, pRandomReverse);
   t_end = gettime();
@@ -87,7 +95,8 @@ static void ssat_solve_random(ssat_solver *s, Vec_Int_t *pScope,
 
 static void ssat_solve_exist(ssat_solver *s, Vec_Int_t *pScope) {
   t_start = gettime();
-  if (s->pPerf->fDone) return;
+  if (s->pPerf->fDone)
+    return;
   s->pPerf->current_type = Quantifier_Exist;
   ssat_solver_existelim(s, pScope);
   t_end = gettime();
@@ -229,16 +238,23 @@ void ssat_main(char *filename, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   _solver = ssat_solver_new();
+  char file[256], temp_file[256];
+  sprintf(file, "%s", filename);
   _solver->verbose = fVerbose;
-  if (!Util_CallProcess("python3", _solver->verbose, "python3", "script/general05.py",
-                   filename, "tmp/temp.sdimacs", NULL)) {
-    Util_CallProcess("python3", _solver->verbose, "python3", "script/wmcrewriting2.py",
-                      filename, "tmp/temp.sdimacs", NULL);
+  _solver->pName = get_filename(filename);
+  printf("%s\n", _solver->pName);
+  sprintf(temp_file, "%s.sdimacs", _solver->pName);
+
+  // convert benchmarks to 0.5 prob
+  if (!Util_CallProcess("python3", _solver->verbose, "python3",
+                        "script/general05.py", file, temp_file, NULL)) {
+    Util_CallProcess("python3", _solver->verbose, "python3",
+                     "script/wmcrewriting2.py", file, temp_file, NULL);
   }
 
   // open file
-  ssat_Parser(_solver, "tmp/temp.sdimacs");
-  ssat_parser_finished_process(_solver, "tmp/temp.sdimacs");
+  ssat_Parser(_solver, temp_file);
+  ssat_parser_finished_process(_solver, temp_file);
   ssat_check_const(_solver);
   int result = ssat_solver_solve2(_solver);
 
@@ -260,6 +276,7 @@ void ssat_main(char *filename, int fVerbose) {
   }
   ssat_print_perf(_solver);
   ssat_solver_delete(_solver);
+  remove(temp_file);
 }
 
 ABC_NAMESPACE_IMPL_END

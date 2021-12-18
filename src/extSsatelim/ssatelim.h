@@ -55,6 +55,7 @@ struct ssat_solver_t
   Vec_Flt_t * pQuanWeight;
   Vec_Int_t * varPiIndex;
   Vec_Int_t * piVarIndex;
+  char * pName;
   double result;
   int doSynthesis;
   int useBdd;

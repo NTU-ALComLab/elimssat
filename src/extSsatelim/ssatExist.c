@@ -46,7 +46,7 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     Vec_IntForEachEntry(pScope, entry, index) {
       Vec_IntPush(pScopeNew, Abc_NtkPi(s->pNtk, entry)->Id);
     }
-    s->pNtk = manthanExistsElim(s->pNtk, pScopeNew, s->verbose);
+    s->pNtk = manthanExistsElim(s->pNtk, pScopeNew, s->verbose, s->pName);
     Vec_IntFree(pScopeNew);
   } else if (s->useCadet) {
     Vec_Int_t *pScopeNew = Vec_IntAlloc(pScope->nSize);
@@ -65,7 +65,10 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   int index, entry;
   Vec_Int_t *pScope;
   FILE *in = fopen(filename, "r");
-  FILE *out = fopen("tmp/temp.qdimacs", "w");
+  char temp_aigfile[256], temp_qdimcasfile[256];
+  sprintf(temp_qdimcasfile, "%s.qdimacs", s->pName);
+  sprintf(temp_aigfile, "%s_skolem.aig", s->pName);
+  FILE *out = fopen(temp_qdimcasfile, "w");
   char *line = NULL;
   size_t len = 0;
   ssize_t read;
@@ -106,24 +109,9 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   fclose(in);
   fclose(out);
   assert(Vec_IntSize(vExists) + Vec_IntSize(vForalls) == Abc_NtkPiNum(s->pNtk));
-  // chdir("manthan");
-  // Util_CallProcess("python3", s->verbose, "python3",
-  //                  "manthan.py", // "--preprocess", "--unique",
-  //                                // "--unique",
-  //                  "--unique", "--preprocess", "--multiclass", "--lexmaxsat",
-  //                  "--verb", "0", "../tmp/temp.qdimacs", NULL);
-  // chdir("../");
-  // if (s->verbose) {
-  //   Abc_Print(1, "> Calling manthan done\n");
-  // }
-  // Abc_Ntk_t *pSkolem = Io_ReadAiger("manthan/temp_skolem.aig", 1);
-  // pSkolem = Util_NtkDc2(pSkolem, 1);
-  // pSkolem = Util_NtkResyn2(pSkolem, 1);
-  // pSkolem = Util_NtkDFraig(pSkolem, 1);
-  // Abc_Ntk_t *pNtkNew = applySkolem(s->pNtk, pSkolem, vForalls, vExists);
-  Util_CallProcess("bin/cadet", s->verbose, "bin/cadet", "-e", "tmp/temp_skolem.aig",
-                   "tmp/temp.qdimacs", NULL);
-  Abc_Ntk_t *pSkolem = Io_ReadAiger("tmp/temp_skolem.aig", 1);
+  Util_CallProcess("bin/cadet", s->verbose, "bin/cadet", "-e", temp_aigfile,
+                   temp_qdimcasfile, NULL);
+  Abc_Ntk_t *pSkolem = Io_ReadAiger( temp_aigfile, 1);
   pSkolem = Util_NtkDc2(pSkolem, 1);
   pSkolem = Util_NtkResyn2(pSkolem, 1);
   pSkolem = Util_NtkDFraig(pSkolem, 1);
@@ -133,6 +121,8 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   Abc_NtkDelete(pSkolem);
   Vec_IntFree(vExists);
   Vec_IntFree(vForalls);
+  remove(temp_aigfile);
+  remove(temp_qdimcasfile);
   ssat_synthesis(s);
   if (!s->useBdd) {
     ssat_build_bdd(s);
