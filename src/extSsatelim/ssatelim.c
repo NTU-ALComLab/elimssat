@@ -237,6 +237,7 @@ int ssat_solver_solve2(ssat_solver *s) {
 void ssat_main(char *filename, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
+  signal(SIGSEGV, ssat_sighandler);
   _solver = ssat_solver_new();
   char file[256], temp_file[256];
   sprintf(file, "%s", filename);
