@@ -679,8 +679,10 @@ void Util_MaxInputPatternWithOuputAs0( Abc_Ntk_t* pNtk, Vec_Int_t * pCaredPi )
   int entry;
   Vec_IntForEachEntry( pCaredPi, entry, index )
   {
+    printf("%d\n", entry);
     pNtk->pModel[entry] = 1;
     const int simulated_result = Util_NtkSimulate(pNtk) & (int)01;
+    printf("%d\n", simulated_result);
     if (simulated_result != 0)
     {
       pNtk->pModel[entry] = 0;
@@ -853,7 +855,7 @@ Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete )
 Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete )
 {
     extern Abc_Ntk_t * Abc_NtkDarFraig( Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve, int fTransfer, int fSpeculate, int fChoicing, int fVerbose );
-    int nConfLimit   = 500;
+    int nConfLimit   = 100;
     int fDoSparse    = 1;
     int fProve       = 0;
     int fSpeculate   = 0;
@@ -1186,6 +1188,11 @@ int Util_NtkSat(Abc_Ntk_t * pNtk, int fVerbose)
     int fAndOuts      = 0;
     int fNewSolver    = 0;
     // int RetValue = Abc_NtkMiterSat( pNtkMiter, (ABC_INT64_T)nConfLimit, (ABC_INT64_T)nInsLimit, fVerbose, NULL, NULL );
+    if (fVerbose) {
+      printf("#PI : %d\n", Abc_NtkPiNum(pNtk));
+      printf("#PO : %d\n", Abc_NtkPoNum(pNtk));
+      printf("#AND: %d\n", Abc_NtkNodeNum(pNtk));
+    }
     int RetValue = Abc_NtkDSat( pNtk, (ABC_INT64_T)nConfLimit, (ABC_INT64_T)nInsLimit, nLearnedStart, nLearnedDelta, nLearnedPerce, fAlignPol, fAndOuts, fNewSolver, fVerbose );
     
     return RetValue;

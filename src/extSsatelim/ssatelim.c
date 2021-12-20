@@ -210,10 +210,14 @@ void ssat_parser_finished_process(ssat_solver *s, char *filename) {
 
 int ssat_solver_solve2(ssat_solver *s) {
   Vec_Int_t *pRandomReverse = Vec_IntAlloc(0);
+  int fExists = false;
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
-    // if (i == 0 && type == Quantifier_Exist && !s->useBdd) break;
+    if (i == 0 && type == Quantifier_Exist && !s->useBdd) {
+      fExists = true; // turn on sat solving on the outermost exists
+      break;
+    }
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
     if (s->verbose) {
       Abc_Print(1, "> level %d, quantifier type %s, %d element\n", i,
@@ -228,7 +232,7 @@ int ssat_solver_solve2(ssat_solver *s) {
     ssat_solve_afterelim(s);
   }
   // count the final result
-  ssat_randomCompute(s, pRandomReverse);
+  ssat_randomCompute(s, pRandomReverse, fExists);
   Vec_IntFree(pRandomReverse);
   s->pPerf->fDone = 1;
   return l_True;

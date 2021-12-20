@@ -113,7 +113,7 @@ extern void ssat_solver_existelim(ssat_solver* s, Vec_Int_t* pScope);
 
 // ssatRandom.c
 extern void ssat_solver_randomelim(ssat_solver* s, Vec_Int_t* pScope, Vec_Int_t *pRandomReverse);
-extern void ssat_randomCompute(ssat_solver* s, Vec_Int_t *pRandom);
+extern void ssat_randomCompute(ssat_solver* s, Vec_Int_t *pRandom, int fExists);
 
 // ssatsynthesis.c
 extern void ssat_synthesis(ssat_solver *s);

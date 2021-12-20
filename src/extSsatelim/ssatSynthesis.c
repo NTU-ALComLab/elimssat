@@ -28,7 +28,7 @@ void ssat_build_bdd(ssat_solver *s) {
     s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
                                                 fReorder, fReverse, fVerbose);
   } else {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 100000, 1, fReorder,
+    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 80000, 1, fReorder,
                                                 fReverse, fVerbose);
   }
   s->bFunc = NULL;

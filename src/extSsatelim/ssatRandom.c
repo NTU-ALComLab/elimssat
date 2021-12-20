@@ -29,11 +29,13 @@ static double ratio_counting(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
   int i = 0;
   Vec_IntForEachEntryReverse(pRandom, entry, index) {
     const int pModelValue = pNtk->pModel[entry];
+    printf("%d", pModelValue);
     if (pModelValue) {
       count += pow(2, i);
     }
     i++;
   }
+  printf("\n");
   ret = (total - count) / total;
   return ret;
 }
@@ -93,7 +95,45 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
   Vec_IntFree(pSort);
 }
 
-void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
+static int ssat_solve_append(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
+  int entry, index;
+  Abc_Obj_t *pObj;
+  Abc_Ntk_t *pNtkNew = Abc_NtkStartFrom(pNtk, ABC_NTK_STRASH, ABC_FUNC_AIG);
+  Abc_NtkForEachPi(pNtk, pObj, index) {
+    pObj->pCopy = Abc_NtkPi(pNtkNew, index);
+  }
+  Vec_IntForEachEntry(pRandom, entry, index) {
+    // Abc_NtkPi(pNtk, entry)->pCopy = Abc_AigConst1(pNtkNew);
+    Abc_NtkPi(pNtk, entry)->pCopy =
+        pNtk->pModel[entry] ? Abc_AigConst1(pNtkNew) : Abc_AigConst0(pNtkNew);
+  }
+  Abc_Obj_t* pPo = Util_NtkAppend(pNtkNew, pNtk);
+  if (Abc_ObjIsComplement(Abc_NtkPo(pNtk, 0))) {
+    pPo = Abc_ObjNot(pPo);
+  }
+  Abc_ObjAddFanin(Abc_NtkPo(pNtkNew, 0), pPo);
+  pNtkNew = Util_NtkDc2(pNtkNew, 1);
+  int res = Util_NtkSat(pNtkNew, 0);
+  printf("%s\n", res == 0 ? "SAT" : "UNSAT");
+  return res;
+}
+
+static double ssat_solve_randomexist(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
+  // trivial cases
+  int entry, index;
+  Util_SetCiModelAs0(pNtk);
+  if (!ssat_solve_append(pNtk, pRandom)) {
+    return 1;
+  }
+  Vec_IntForEachEntry(pRandom, entry, index) {
+    pNtk->pModel[entry] = 1;
+    pNtk->pModel[entry] = ssat_solve_append(pNtk, pRandom) == 0 ? 0 : 1;
+  }
+  return ratio_counting(pNtk, pRandom);
+}
+
+void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse,
+                        int fExists) {
   if (s->pPerf->fDone)
     return;
   if (s->useBdd) {
@@ -114,26 +154,20 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse) {
     pNtk = Abc_NtkStrash(s->pNtk, 0, 0, 0);
 
   Util_NtkModelAlloc(pNtk);
-  unsigned int simulated_result = simulateTrivialCases(pNtk, 0);
-  if (bit0_is_1(simulated_result)) {
-    if (s->verbose) {
-      Abc_Print(1, "F equals const 1\n");
+  if (!fExists) {
+    unsigned int simulated_result = simulateTrivialCases(pNtk, 0);
+    if (bit0_is_1(simulated_result)) {
+      if (s->verbose) {
+        Abc_Print(1, "F equals const 1\n");
+      }
+      s->result = 1;
+      Vec_IntFree(pRandom);
+      return;
     }
-    s->result = 1;
-    Vec_IntFree(pRandom);
-    return;
+    Util_MaxInputPatternWithOuputAs0(pNtk, pRandom);
+    s->result = ratio_counting(pNtk, pRandom);
+  } else {
+    s->result = ssat_solve_randomexist(pNtk, pRandom);
   }
-  simulated_result = simulateTrivialCases(pNtk, 1);
-  if (bit1_is_0(simulated_result)) {
-    if (s->verbose) {
-      Abc_Print(1, "F equals const 0\n");
-    }
-    s->result = 0;
-    Vec_IntFree(pRandom);
-    return;
-  }
-
-  Util_MaxInputPatternWithOuputAs0(pNtk, pRandom);
-  s->result = ratio_counting(pNtk, pRandom);
   Vec_IntFree(pRandom);
 }
