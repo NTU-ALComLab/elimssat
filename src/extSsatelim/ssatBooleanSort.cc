@@ -289,7 +289,9 @@ DdNode *ssat_BDDReorder(DdManager *ddNew, DdManager *dd, DdNode * bFunc, int tar
   Cudd_Ref( bFuncNew );
   Cudd_RecursiveDeref(dd, bFunc);
   Cudd_Quit(dd);
-  Cudd_ReduceHeap(ddNew, CUDD_REORDER_EXACT, 10000);
+  Cudd_ReduceHeap(ddNew, CUDD_REORDER_SIFT, 5000);
+  Cudd_ReduceHeap(ddNew, CUDD_REORDER_RANDOM, 5000);
+  Cudd_ReduceHeap(ddNew, CUDD_REORDER_GROUP_SIFT, 5000);
   return bFuncNew;
 }
 

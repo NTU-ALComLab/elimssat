@@ -35,16 +35,21 @@ static Abc_Ntk_t * DummyFunction( Abc_Ntk_t * pNtk )
 
 static int ssat_Command( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
-    int c            = 0;
-    int fVerbose     = 0;
+    int c        = 0;
+    int fVerbose = 0;
+    int fReorder = 1;
+
     char * pFileName;
     // Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     // Abc_Ntk_t * pNtkResult;
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "vSh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "rvSh" ) ) != EOF )
     {
         switch ( c )
         {
+            case 'r':
+                fReorder ^= 1;
+                break;
             case 'v':
                 fVerbose ^= 1;
                 break;
@@ -62,7 +67,7 @@ static int ssat_Command( Abc_Frame_t * pAbc, int argc, char ** argv )
     pFileName = argv[globalUtilOptind];
 
     // call main function
-    ssat_main(pFileName, fVerbose);
+    ssat_main(pFileName, fReorder, fVerbose);
 
     return 0;
     

@@ -61,6 +61,7 @@ struct ssat_solver_t
   int useBdd;
   int useCadet;
   int useManthan;
+  int useReorder;
   int verbose;
 };
 
@@ -94,7 +95,7 @@ extern ssat_solver* ssat_solver_new();
 extern void ssat_solver_delete(ssat_solver* s);
 
 extern int ssatelim_init_function();
-extern void ssat_main(char * filename, int fVerbose);
+extern void ssat_main(char * filename, int fReorder, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
 extern void ssat_parser_finished_process(ssat_solver* s, char * filename);

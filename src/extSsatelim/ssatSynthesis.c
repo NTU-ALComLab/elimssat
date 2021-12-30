@@ -1,6 +1,7 @@
 #include "ssatelim.h"
 #include "extUtil/util.h"
 
+
 void ssat_synthesis(ssat_solver *s) {
   if (s->verbose) {
     Abc_Print(1, "> Perform Synthesis...\n");

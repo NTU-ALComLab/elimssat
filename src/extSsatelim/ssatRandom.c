@@ -3,6 +3,8 @@
 #include "ssatBooleanSort.h"
 #include "ssatelim.h"
 
+extern Abc_Ntk_t * Abc_NtkFromGlobalBdds( Abc_Ntk_t * pNtk, int fReverse );
+
 static int bit0_is_1(unsigned int bitset) {
   return (Util_BitSet_getValue(&bitset, 0) == 1);
 }
@@ -29,13 +31,11 @@ static double ratio_counting(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
   int i = 0;
   Vec_IntForEachEntryReverse(pRandom, entry, index) {
     const int pModelValue = pNtk->pModel[entry];
-    printf("%d", pModelValue);
     if (pModelValue) {
       count += pow(2, i);
     }
     i++;
   }
-  printf("\n");
   ret = (total - count) / total;
   return ret;
 }
@@ -66,14 +66,14 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
   Vec_IntForEachEntry(pRandomReverse, entry, index) {
     Vec_IntPush(pSort, entry);
     if (s->useBdd) {
-      DdNode *ptemp = s->bFunc;
       s->bFunc = Util_sortBitonicBDD(s->dd, s->bFunc, pSort);
       Cudd_Ref(s->bFunc);
-      Cudd_RecursiveDeref(s->dd, ptemp);
-      DdManager *ddNew =
-          Cudd_Init(s->dd->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
-      s->bFunc = ssat_BDDReorder(ddNew, s->dd, s->bFunc, entry, 0);
-      s->dd = ddNew;
+      if (s->useReorder) {
+        DdManager *ddNew =
+            Cudd_Init(s->dd->size, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+        s->bFunc = ssat_BDDReorder(ddNew, s->dd, s->bFunc, entry, 0);
+        s->dd = ddNew;
+      }
       if (s->verbose) {
         Abc_Print(1, "[DEBUG] %d %d/%d Dag Size of current network: %d\n",
                   entry, index + 1, Vec_IntSize(pRandomReverse),

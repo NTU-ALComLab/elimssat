@@ -80,7 +80,7 @@ extern Abc_Ntk_t * Util_NtkDc2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDrwsat( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete );
-extern Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fBddSizeMAx, int fDelete );
 extern Abc_Ntk_t * Util_NtkStrash( Abc_Ntk_t * pNtk, int fDelete );
 
 extern void Util_NtkRewrite( Abc_Ntk_t * pNtk );

@@ -69,6 +69,9 @@ static void ssat_print_perf(ssat_solver *s) {
 }
 
 static void ssat_check_const(ssat_solver *s) {
+  if (s->useBdd) {
+    return;
+  }
   Abc_Obj_t *pObj, *pPo;
   pPo = Abc_NtkPo(s->pNtk, 0);
   pObj = Abc_ObjFanin0(pPo);
@@ -141,6 +144,7 @@ ssat_solver *ssat_solver_new() {
   s->useManthan = 1;
   s->useCadet = 0;
   s->verbose = 0;
+  s->useReorder = 1;
   return s;
 }
 
@@ -238,7 +242,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   return l_True;
 }
 
-void ssat_main(char *filename, int fVerbose) {
+void ssat_main(char *filename, int fReorder, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
@@ -246,8 +250,8 @@ void ssat_main(char *filename, int fVerbose) {
   char file[256], temp_file[256];
   sprintf(file, "%s", filename);
   _solver->verbose = fVerbose;
+  _solver->useReorder = fReorder;
   _solver->pName = get_filename(filename);
-  printf("%s\n", _solver->pName);
   sprintf(temp_file, "%s.sdimacs", _solver->pName);
 
   // convert benchmarks to 0.5 prob

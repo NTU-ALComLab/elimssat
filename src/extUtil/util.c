@@ -679,10 +679,8 @@ void Util_MaxInputPatternWithOuputAs0( Abc_Ntk_t* pNtk, Vec_Int_t * pCaredPi )
   int entry;
   Vec_IntForEachEntry( pCaredPi, entry, index )
   {
-    printf("%d\n", entry);
     pNtk->pModel[entry] = 1;
     const int simulated_result = Util_NtkSimulate(pNtk) & (int)01;
-    printf("%d\n", simulated_result);
     if (simulated_result != 0)
     {
       pNtk->pModel[entry] = 0;
@@ -867,14 +865,13 @@ Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete )
     return pNtkNew;
 }
 
-Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fDelete )
+Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fBddSizeMax, int fDelete )
 {
     int fVerbose = 0;
     int fReorder = 1;
     int fReverse = 0;
     int fDumpOrder = 0;
     int fDualRail = 0;
-    int fBddSizeMax = ABC_INFINITY;
     Abc_Ntk_t * pNtkNew = Abc_NtkCollapse( pNtk, fBddSizeMax, fDualRail, fReorder, fReverse, fDumpOrder, fVerbose );
     if (pNtkNew && fDelete)
        Abc_NtkDelete(pNtk);
