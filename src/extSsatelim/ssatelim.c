@@ -17,6 +17,7 @@
 #include "base/io/ioAbc.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
+#include "bdd/cudd/cudd.h"
 #include <libgen.h>
 #include <signal.h>
 #include <zlib.h>
@@ -70,6 +71,14 @@ static void ssat_print_perf(ssat_solver *s) {
 
 static void ssat_check_const(ssat_solver *s) {
   if (s->useBdd) {
+    if (Cudd_IsConstant(s->bFunc)) {
+      if (Cudd_IsComplement(s->bFunc)) {
+        s->result = 0;
+      } else {
+        s->result = 1;
+      }
+      s->pPerf->fDone = 1;
+    }
     return;
   }
   Abc_Obj_t *pObj, *pPo;
