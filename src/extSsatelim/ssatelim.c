@@ -56,6 +56,7 @@ static void ssat_print_perf(ssat_solver *s) {
     printf("  > Solving not finish!\n");
     printf("  > Working on the quantifier type of   = %d\n",
            s->pPerf->current_type);
+    printf("  > Used BDD = %d\n", s->useBdd);
     t_end = gettime();
     if (s->pPerf->current_type == Quantifier_Exist) {
       s->pPerf->tExists += tdiff(t_start, t_end);
@@ -292,6 +293,7 @@ void ssat_main(char *filename, int fReorder, int fVerbose) {
   } else if (result == l_Unsupp) {
     Abc_Print(1, "s UNSUPPORT\n");
   }
+  printf("  > Used BDD = %d\n", _solver->useBdd);
   ssat_print_perf(_solver);
   ssat_solver_delete(_solver);
   remove(temp_file);
