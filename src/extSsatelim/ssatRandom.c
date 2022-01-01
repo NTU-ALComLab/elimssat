@@ -83,8 +83,6 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
       s->pNtk = Util_sortBitonic(s->pNtk, pSort);
       Abc_AigCleanup((Abc_Aig_t *)s->pNtk->pManFunc);
       s->pNtk = Util_NtkDFraig(s->pNtk, 1);
-      s->pNtk = Util_NtkDc2(s->pNtk, 1);
-      s->pNtk = Util_NtkResyn2(s->pNtk, 1);
       if (s->verbose) {
         Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
                   index + 1, Vec_IntSize(pRandomReverse),
