@@ -853,7 +853,7 @@ Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete )
 Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete )
 {
     extern Abc_Ntk_t * Abc_NtkDarFraig( Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve, int fTransfer, int fSpeculate, int fChoicing, int fVerbose );
-    int nConfLimit   = 100;
+    int nConfLimit   = 500;
     int fDoSparse    = 1;
     int fProve       = 0;
     int fSpeculate   = 0;
