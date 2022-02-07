@@ -17,7 +17,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "base/main/main.h"
-#include "sat/bsat/satSolver.h"
 #include "bdd/extrab/extraBdd.h" // 
 #include "sat/cnf/cnf.h"
 
@@ -79,7 +78,9 @@ extern Abc_Ntk_t * Util_NtkResyn2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDc2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDrwsat( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete );
-extern Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t * Util_NtkDFraig( Abc_Ntk_t * pNtk, int fDelete, int fDoSparse);
+extern Abc_Ntk_t *Util_NtkGiaFraig(Abc_Ntk_t *pNtk, int fDelete);
+extern Abc_Ntk_t *Util_NtkGiaSweep(Abc_Ntk_t *pNtk, int fDelete);
 extern Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fBddSizeMAx, int fDelete );
 extern Abc_Ntk_t * Util_NtkStrash( Abc_Ntk_t * pNtk, int fDelete );
 
@@ -113,14 +114,6 @@ extern void Util_CollectPi( Vec_Ptr_t * vPi, Abc_Ntk_t * pNtk, int index_start, 
 extern int Util_NtkSat(Abc_Ntk_t * pNtk, int fVerbose);
 extern int Util_SatResultToBool(int SatResult);
 extern int Util_NtkIsEqual( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2);
-// sat_solver
-extern int sat_solver_add_conditional_equal( sat_solver * pSat, int iVar, int iVar2, int iVarCond );
-extern int sat_solver_add_conditional_nonequal( sat_solver * pSat, int iVar, int iVar2, int iVarCond );
-extern int sat_solver_add_dual_conditional_equal( sat_solver * pSat, int iVar, int iVar2, int iVarCond1, int iVarCond2 );
-extern int sat_solver_add_equal( sat_solver * pSat, int iVar, int iVar2 );
-extern int sat_solver_add_dual_clause( sat_solver * pSat, lit litA, lit litB );
-extern int sat_solver_addclause_from( sat_solver* pSat, Cnf_Dat_t * pCnf );
-extern void sat_solver_print( sat_solver* pSat, int fDimacs );
 // fork process
 extern int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...);
 // 
