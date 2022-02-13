@@ -259,17 +259,17 @@ Abc_Ntk_t* rel2FuncInt2(Abc_Ntk_t* pNtk, vector<char*> & vNameY, vector<Abc_Ntk_
             pNtkFunc = pNtkFuncTemp;
             cout << "0\t";
         }
-        else {
-        // else if(Abc_NtkObjNum(pNtkFuncTemp) > Abc_NtkObjNum(pNtkFunc)) {
+        // else {
+        else if(Abc_NtkObjNum(pNtkFuncTemp) > Abc_NtkObjNum(pNtkFunc)) {
             pNtkFunc = resyn(pNtkFunc);
             Abc_NtkDelete(pNtkFuncTemp);
             cout << "1\t";
         }
-        // else {
-        //     Abc_NtkDelete(pNtkFunc);
-        //     pNtkFunc = pNtkFuncTemp;
-        //     cout << "2\t";
-        // }
+        else {
+            Abc_NtkDelete(pNtkFunc);
+            pNtkFunc = pNtkFuncTemp;
+            cout << "2\t";
+        }
        /* if(pNtkFunc == NULL) {
             cout <<  "sat time out" << MAX_AIG_NODE << endl;
             Abc_NtkDelete(pNtkRel);

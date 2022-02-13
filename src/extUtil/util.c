@@ -916,6 +916,40 @@ Abc_Ntk_t *Util_NtkStrash(Abc_Ntk_t *pNtk, int fDelete) {
   return pNtkNew;
 }
 
+Abc_Ntk_t * Util_NtkInverse( Abc_Ntk_t * pNtk, int fDelete ) {
+  Abc_Ntk_t *pNtkNew = Abc_NtkDup(pNtk);
+  Abc_Obj_t *pObj = Abc_NtkPo(pNtkNew, 0);
+  Abc_ObjXorFaninC(pObj, 0);
+  if (pNtkNew && fDelete)
+    Abc_NtkDelete(pNtk);
+  return pNtkNew;
+}
+
+Abc_Ntk_t * Util_NtkInversePi( Abc_Ntk_t * pNtk, int index, int fDelete ) {
+  Abc_Ntk_t * pNtkNew = Abc_NtkStartFrom(pNtk, pNtk->ntkType, pNtk->ntkFunc);
+  Abc_Obj_t * pObj;
+  int i;
+  Abc_NtkForEachPi(pNtk, pObj, i) {
+    if (index == i) {
+      pObj->pCopy = Abc_ObjNot(Abc_NtkPi(pNtkNew, index));
+    } else {
+      pObj->pCopy = Abc_NtkPi(pNtkNew, i);
+    }
+  }
+  Abc_NtkForEachCo(pNtk, pObj, i) {
+    pObj->pCopy = Abc_NtkPo(pNtkNew, i);
+  }
+  Abc_AigForEachAnd(pNtk, pObj, i) {
+    pObj->pCopy = Abc_AigAnd((Abc_Aig_t *)pNtkNew->pManFunc,
+                             Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj));
+  }
+  // relink the CO nodes
+  Abc_NtkForEachCo(pNtk, pObj, i) {
+    Abc_ObjAddFanin(pObj->pCopy, Abc_ObjChild0Copy(pObj));
+  }
+  return pNtkNew;
+}
+
 void Util_NtkRewrite(Abc_Ntk_t *pNtk) {
   int fUpdateLevel = 1;
   // int fPrecompute  = 0;

@@ -57,7 +57,17 @@ void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
     }
     s->pNtk = cadetExistsElim(s->pNtk, pScopeNew);
     Vec_IntFree(pScopeNew);
-  } else
+  } else if (s->useR2f) {
+    Vec_Int_t *pScopeNew = Vec_IntAlloc(pScope->nSize);
+    int entry, index;
+    // change PI index into object index
+    Vec_IntForEachEntry(pScope, entry, index) {
+      Vec_IntPush(pScopeNew, Abc_NtkPi(s->pNtk, entry)->Id);
+    }
+    s->pNtk = r2fExistElim(s->pNtk, pScopeNew);
+    Vec_IntFree(pScopeNew);
+  }
+  else
     s->pNtk = existence_eliminate_scope(s->pNtk, pScope, s->verbose);
 }
 
@@ -114,7 +124,7 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   Abc_Ntk_t *pSkolem = Io_ReadAiger( temp_aigfile, 1);
   pSkolem = Util_NtkDc2(pSkolem, 1);
   pSkolem = Util_NtkResyn2(pSkolem, 1);
-  pSkolem = Util_NtkDFraig(pSkolem, 1);
+  pSkolem = Util_NtkDFraig(pSkolem, 1, 1);
   Abc_Ntk_t *pNtkNew = applyExists(s->pNtk, pSkolem);
   Abc_NtkDelete(s->pNtk);
   s->pNtk = pNtkNew;

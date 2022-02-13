@@ -16,10 +16,16 @@
 #include "ssatBooleanSort.h"
 #include "extUtil/util.h"
 #include "bdd/extrab/extraBdd.h" // 
+#include "ext-Synthesis/synthesis.h"
 #include <vector>
 #include <algorithm>
 
 ABC_NAMESPACE_IMPL_START
+
+extern "C" {
+int Abc_NtkDarCec(Abc_Ntk_t* pNtk1, Abc_Ntk_t* pNtk2, int nConfLimit,
+                  int fPartition, int fVerbose);
+}
 
 ////////////////////////////////////////////////////////////////////////
 ///                        DECLARATIONS                              ///
@@ -80,6 +86,43 @@ Abc_Ntk_t * random_eliminate_reverse_one_pi2(Abc_Ntk_t * pNtk, Vec_Int_t * pScop
               pObjOr = Util_AigNtkAnd(pNtkNew, pObjOr, Abc_NtkPi(pNtkNew, entry));
 
   Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObjAnd, pObjOr);
+  Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
+
+  return pNtkNew;
+}
+
+Abc_Ntk_t * random_eliminate_reverse_one_pi3(Abc_Ntk_t * pNtk, Vec_Int_t * pScope, int index_var)
+{
+  Abc_Ntk_t * pNtkNew = Util_NtkAllocStrashWithName("ssat");
+  Util_NtkCreatePiFrom( pNtkNew, pNtk, NULL );
+  Util_NtkCreatePoWithName( pNtkNew, "out", NULL );
+
+  int entry = Vec_IntEntry(pScope, index_var);
+  Abc_Obj_t *pRoot;
+
+  Vec_Int_t *pScopeNew = Vec_IntAlloc(0);
+  Vec_IntPush(pScopeNew, Abc_NtkPi(pNtk, entry)->Id);
+
+  Abc_Ntk_t * pNtkRel1 = Abc_NtkMiterQuantify(pNtk, entry, 1);
+  Util_NtkConst1SetCopy(pNtkRel1, pNtkNew);
+  Util_NtkPiSetCopy(pNtkRel1, pNtkNew, 0);
+  pRoot = Abc_NtkCo( pNtkRel1, 0 );
+  Abc_NtkMiterAddCone( pNtkRel1, pNtkNew, pRoot );
+  Abc_Obj_t *pExist = Abc_ObjNotCond( Abc_ObjFanin0(pRoot)->pCopy, Abc_ObjFaninC0(pRoot) );
+  Abc_NtkDelete(pNtkRel1);
+
+  Abc_Ntk_t * pNtkRel2 = Abc_NtkMiterQuantify(pNtk, entry, 0);
+  Util_NtkConst1SetCopy(pNtkRel2, pNtkNew);
+  Util_NtkPiSetCopy(pNtkRel2, pNtkNew, 0);
+  pRoot = Abc_NtkCo( pNtkRel2, 0 );
+  Abc_NtkMiterAddCone( pNtkRel2, pNtkNew, pRoot );
+  Abc_Obj_t *pForall = Abc_ObjNotCond(Abc_ObjFanin0(pRoot)->pCopy, Abc_ObjFaninC0(pRoot));
+  Abc_NtkDelete(pNtkRel2);
+
+  Abc_Obj_t* pObj1 = Util_AigNtkAnd(pNtkNew, pExist, Abc_NtkPi(pNtkNew, entry));
+  Abc_Obj_t* pObj2 = Util_AigNtkAnd(pNtkNew, pForall, Abc_ObjNot(Abc_NtkPi(pNtkNew, entry)));
+
+  Abc_Obj_t * pObj = Util_AigNtkOr(pNtkNew, pObj1, pObj2);
   Abc_ObjAddFanin(  Abc_NtkPo( pNtkNew, 0 ), pObj );
 
   return pNtkNew;
@@ -244,6 +287,7 @@ Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
   Abc_Ntk_t * pNtkOld = pNtk;
   Abc_Ntk_t * pNtkNew = pNtk;
   pNtkNew = random_eliminate_reverse_all_bit2(pNtkOld, pScopeReverse);
+  // printf("reverse all: %d\n", Abc_NtkNodeNum(pNtkNew));
   Abc_NtkDelete(pNtkOld);
   pNtkOld = pNtkNew;
   int index;
@@ -252,10 +296,14 @@ Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
   {
     if (index == 0)
       break;
-    pNtkNew = random_eliminate_reverse_one_pi2(pNtkOld, pScopeReverse, index - 1);
+    // pNtkNew  = random_eliminate_reverse_one_pi2(pNtkOld, pScopeReverse, index - 1);
+    pNtkNew = random_eliminate_reverse_one_pi3(pNtkOld, pScopeReverse, index - 1);
+    // Abc_Ntk_t *pNtkNew2 = random_eliminate_reverse_one_pi3(Abc_NtkDup(pNtkOld), pScopeReverse, index - 1);
+    // Abc_NtkDarCec(pNtkNew, pNtkNew2, 100000, 0, 0);
     Abc_NtkDelete(pNtkOld);
     pNtkOld = pNtkNew;
   }
+  // printf("reverse one: %d\n", Abc_NtkNodeNum(pNtkNew));
   return pNtkNew;
 }
 

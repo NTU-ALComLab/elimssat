@@ -56,6 +56,7 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                             Vec_Int_t *pRandomReverse) {
   int index;
   int entry;
+  int n = Vec_IntSize(pRandomReverse);
   Vec_IntForEachEntryReverse(pScope, entry, index) {
     Vec_IntPush(pRandomReverse, entry);
   }
@@ -65,6 +66,7 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
   }
   Vec_IntForEachEntry(pRandomReverse, entry, index) {
     Vec_IntPush(pSort, entry);
+    if (index < n) continue;
     if (s->useBdd) {
       s->bFunc = Util_sortBitonicBDD(s->dd, s->bFunc, pSort);
       Cudd_Ref(s->bFunc);
@@ -82,7 +84,10 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
     } else {
       s->pNtk = Util_sortBitonic(s->pNtk, pSort);
       Abc_AigCleanup((Abc_Aig_t *)s->pNtk->pManFunc);
-      s->pNtk = Util_NtkDFraig(s->pNtk, 1);
+      s->pNtk = Util_NtkDFraig(s->pNtk, 1, 1);
+      // s->pNtk = Util_NtkGiaFraig(s->pNtk, 1);
+      s->pNtk = Util_NtkResyn2(s->pNtk, 1);
+      s->pNtk = Util_NtkDc2(s->pNtk, 1);
       if (s->verbose) {
         Abc_Print(1, "[DEBUG] %d/%d Object Number of current network: %d\n",
                   index + 1, Vec_IntSize(pRandomReverse),

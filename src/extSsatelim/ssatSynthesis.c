@@ -10,7 +10,7 @@ void ssat_synthesis(ssat_solver *s) {
   }
   s->pNtk = Util_NtkDc2(s->pNtk, 1);
   s->pNtk = Util_NtkResyn2(s->pNtk, 1);
-  s->pNtk = Util_NtkDFraig(s->pNtk, 1);
+  s->pNtk = Util_NtkDFraig(s->pNtk, 1, 1);
   if (s->verbose) {
     Abc_Print(1, "> Object Number after Synthesis: %d\n",
               Abc_NtkNodeNum(s->pNtk));

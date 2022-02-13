@@ -1,7 +1,7 @@
 #ifndef MISC_HPP
 #define MISC_HPP
 
-#define MAX_AIG_NODE 300000
+#define MAX_AIG_NODE 30000
 #include <vector>
 #include "base/abc/abc.h"
 #include "IntSolver.hpp"

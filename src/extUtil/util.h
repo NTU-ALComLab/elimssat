@@ -83,6 +83,8 @@ extern Abc_Ntk_t *Util_NtkGiaFraig(Abc_Ntk_t *pNtk, int fDelete);
 extern Abc_Ntk_t *Util_NtkGiaSweep(Abc_Ntk_t *pNtk, int fDelete);
 extern Abc_Ntk_t * Util_NtkCollapse( Abc_Ntk_t * pNtk, int fBddSizeMAx, int fDelete );
 extern Abc_Ntk_t * Util_NtkStrash( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t * Util_NtkInverse( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t * Util_NtkInversePi( Abc_Ntk_t * pNtk, int index, int fDelete );
 
 extern void Util_NtkRewrite( Abc_Ntk_t * pNtk );
 extern void Util_NtkRewriteZ( Abc_Ntk_t * pNtk );

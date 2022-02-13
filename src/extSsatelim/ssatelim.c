@@ -151,10 +151,12 @@ ssat_solver *ssat_solver_new() {
   s->result = -1;
   s->useBdd = 0;
   s->doSynthesis = 1;
-  s->useManthan = 1;
+  s->useR2f = 1;
+  s->useManthan = 0;
   s->useCadet = 0;
   s->verbose = 0;
   s->useReorder = 1;
+  s->useProjected = 1;
   return s;
 }
 
@@ -206,20 +208,20 @@ void ssat_parser_finished_process(ssat_solver *s, char *filename) {
   ssat_build_bdd(s);
   ssat_quatification_check(s);
   // perform manthan on the original cnf if the network is small enough
-  if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
-    if (s->verbose) {
-      Abc_Print(1, "> exist on original cnf\n");
-    }
-    s->pPerf->current_type = Quantifier_Exist;
-    t_start = gettime();
-    ssat_solver_existouter(s, filename);
-    t_end = gettime();
-    s->pPerf->tExists += tdiff(t_start, t_end);
-    s->pPerf->nExpanded += 1;
-    Vec_IntPop(s->pQuanType);
-    Vec_PtrPop(s->pQuan);
-    Vec_FltPop(s->pQuanWeight);
-  }
+  // if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
+  //   if (s->verbose) {
+  //     Abc_Print(1, "> exist on original cnf\n");
+  //   }
+  //   s->pPerf->current_type = Quantifier_Exist;
+  //   t_start = gettime();
+  //   ssat_solver_existouter(s, filename);
+  //   t_end = gettime();
+  //   s->pPerf->tExists += tdiff(t_start, t_end);
+  //   s->pPerf->nExpanded += 1;
+  //   Vec_IntPop(s->pQuanType);
+  //   Vec_PtrPop(s->pQuan);
+  //   Vec_FltPop(s->pQuanWeight);
+  // }
 }
 
 int ssat_solver_solve2(ssat_solver *s) {
@@ -228,7 +230,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
-    if (i == 0 && type == Quantifier_Exist && !s->useBdd) {
+    if (i == 0 && type == Quantifier_Exist && !s->useBdd && s->useProjected) {
       fExists = true; // turn on sat solving on the outermost exists
       break;
     }
@@ -252,7 +254,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   return l_True;
 }
 
-void ssat_main(char *filename, int fReorder, int fVerbose) {
+void ssat_main(char *filename, int fReorder, int fProjected, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
@@ -261,6 +263,7 @@ void ssat_main(char *filename, int fReorder, int fVerbose) {
   sprintf(file, "%s", filename);
   _solver->verbose = fVerbose;
   _solver->useReorder = fReorder;
+  _solver->useProjected = fProjected;
   _solver->pName = get_filename(filename);
   sprintf(temp_file, "%s.sdimacs", _solver->pName);
 
