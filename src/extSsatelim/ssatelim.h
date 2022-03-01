@@ -58,10 +58,15 @@ struct ssat_solver_t
   char * pName;
   double result;
   int doSynthesis;
+  int haveBdd;
   int useBdd;
   int useCadet;
   int useManthan;
   int useR2f;
+  int successBdd;
+  int successR2f;
+  int successManthan;
+  int successCadet;
   int useReorder;
   int useProjected;
   int verbose;

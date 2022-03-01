@@ -684,11 +684,6 @@ IntSolver::getInt(map<const Var, char *> &varToname) {
     for(unsigned i = 0; i < vPi.size(); i++) {
         Abc_NtkDeleteObj(vPi[i]);
     }
- //   cerr << "start ivy fraig" << endl;
-    Abc_Ntk_t *pNtkTemp = intNtk;
-    intNtk = Abc_NtkIvyFraig(pNtkTemp, 100, 1, 0, 0, 0);
-    Abc_NtkDelete(pNtkTemp);
-   // cerr << "end ivy fraig" << endl;
     
     //intNtk = resyn(intNtk);
 #ifdef _DEBUG

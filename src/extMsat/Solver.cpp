@@ -815,7 +815,7 @@ bool Solver::solve(const vec<Lit>& assumps)//,bool &TimeOut)
 	   t2 = cpuTime();//
 	    if (t2-t1> SAT_TIME )
 	    {
-           // printf("int time out");
+        printf("int time out");
 		    TimeOut = true;
             cancelUntil(0);
 		    return true;

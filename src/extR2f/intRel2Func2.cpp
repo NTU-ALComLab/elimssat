@@ -1,5 +1,6 @@
 #include <iostream> 
 #include <algorithm>
+#include "base/abc/abc.h"
 #include "intRel2Func2.hpp"
 #include "subRel2Func.hpp"
 #include "CnfConvert.hpp"
@@ -235,40 +236,36 @@ Abc_Ntk_t* singleRel2FuncInt2(Abc_Ntk_t* pNtk, char* yName, vector<char*> &vName
 
 }
 
-Abc_Ntk_t* rel2FuncInt2(Abc_Ntk_t* pNtk, vector<char*> & vNameY, vector<Abc_Ntk_t*> &vFunc) {
+Abc_Ntk_t* rel2FuncInt2(Abc_Ntk_t* pNtk, vector<char*> & vNameY, vector<Abc_Ntk_t*> &vFunc, bool fVerbose) {
     Abc_Ntk_t* pNtkFunc;
     Abc_Ntk_t* pNtkRel = Abc_NtkDup(pNtk);
     pNtkRel = resyn(pNtkRel);
 
     vector<Abc_Ntk_t*> vNtkRel;
    // Abc_Ntk_t* pNtkRel == Abc_NtkCollapse( pNtk, 50000000, 0, 1, 0 );
-    cout << "function info during processing" << endl;
-    cout << "-------------------------------" << endl;
-    cout << "soltype\tlev#\tnode#\tpi#\trel-lev#\trel-node#" << endl;
-    cout << "-------------------------------" << endl;
+    // cout << "function info during processing" << endl;
+    // cout << "-------------------------------" << endl;
+    if (fVerbose) {
+      cout << "soltype\tlev#\tnode#\tpi#\trel-lev#\trel-node#" << endl;
+      cout << "-------------------------------" << endl;
+    }
     for(unsigned i = 0; i < vNameY.size(); i++) {
         //cout << i << "\tRelation Node: " << Abc_NtkObjNum(pNtkRel) << endl;
-        cout << i << "\t";
-        if(i < vNameY.size() - 1)
-            vNtkRel.push_back(Abc_NtkDup(pNtkRel));
         //cout << "begin solve\n" << endl;
         pNtkFunc = singleRel2FuncInt2(pNtkRel, vNameY[i], vNameY);
         //cout << "end solve\n" << endl;
         Abc_Ntk_t* pNtkFuncTemp = singleRel2Func(pNtkRel, vNameY[i]);
         if(pNtkFunc == NULL) {
             pNtkFunc = pNtkFuncTemp;
-            cout << "0\t";
         }
         // else {
         else if(Abc_NtkObjNum(pNtkFuncTemp) > Abc_NtkObjNum(pNtkFunc)) {
             pNtkFunc = resyn(pNtkFunc);
             Abc_NtkDelete(pNtkFuncTemp);
-            cout << "1\t";
         }
         else {
             Abc_NtkDelete(pNtkFunc);
             pNtkFunc = pNtkFuncTemp;
-            cout << "2\t";
         }
        /* if(pNtkFunc == NULL) {
             cout <<  "sat time out" << MAX_AIG_NODE << endl;
@@ -283,13 +280,17 @@ Abc_Ntk_t* rel2FuncInt2(Abc_Ntk_t* pNtk, vector<char*> & vNameY, vector<Abc_Ntk_
         }
 
         pNtkFunc = Util_NtkDFraig(pNtkFunc, 1, 1);
-        pNtkFunc = Util_NtkResyn2(pNtkFunc, 1);
         pNtkFunc = Util_NtkDc2(pNtkFunc, 1);
+        pNtkFunc = Util_NtkResyn2(pNtkFunc, 1);
         pNtkRel = replaceX(pNtkRel, pNtkFunc, vNameY[i]);
-        pNtkRel = Util_NtkDFraig(pNtkRel, 1, 1);
-        pNtkRel = Util_NtkResyn2(pNtkRel, 1);
-        pNtkRel = Util_NtkDc2(pNtkRel, 1);
-        cout << Abc_AigLevel(pNtkFunc) << "\t" << Abc_NtkObjNum(pNtkFunc) << "\t" << Abc_NtkPiNum(pNtkFunc) << "\t" << Abc_AigLevel(pNtkRel) << "\t" << Abc_NtkObjNum(pNtkRel) << endl;
+        if(Abc_NtkObjNum(pNtkRel) > MAX_AIG_NODE) {
+            Abc_NtkDelete(pNtkFunc);
+            Abc_NtkDelete(pNtkRel);
+            return NULL;
+        }
+        if (fVerbose) {
+          cout << i + 1 << "\t" << Abc_AigLevel(pNtkFunc) << "\t" << Abc_NtkObjNum(pNtkFunc) << "\t" << Abc_NtkPiNum(pNtkFunc) << "\t" << Abc_AigLevel(pNtkRel) << "\t" << Abc_NtkObjNum(pNtkRel) << endl;
+        }
         /*for(unsigned j = 0; j < vFunc.size(); j++) {
             vFunc[j] = replaceX(vFunc[j], pNtkFunc, vNameY[i]);
         }*/

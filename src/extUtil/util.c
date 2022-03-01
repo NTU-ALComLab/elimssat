@@ -14,10 +14,10 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "util.h"
+#include "aig/gia/gia.h"
+#include "aig/gia/giaAig.h"
 #include "bdd/extrab/extraBdd.h" //
 #include "proof/cec/cec.h"
-#include "aig/gia/giaAig.h"
-#include "aig/gia/gia.h"
 #include "proof/dch/dch.h"
 #include "utilSat.h"
 #include <fcntl.h>
@@ -723,6 +723,19 @@ void Util_PrintTruthtable(Abc_Ntk_t *pNtk) {
   }
 }
 
+void Util_NtkResub(Abc_Ntk_t *pNtk, int nCutsMax, int nNodesMax) {
+  extern int Abc_NtkResubstitute( Abc_Ntk_t * pNtk, int nCutsMax, int nNodesMax, int nLevelsOdc, int fUpdateLevel, int fVerbose, int fVeryVerbose );
+  assert(nCutsMax > 0);
+  assert(nNodesMax > 0);
+  int nLevelsOdc = 0;
+  int fUpdateLevel = 1;
+  int fVerbose = 0;
+  int fVeryVerbose = 0;
+  Abc_NtkResubstitute(pNtk, nCutsMax, nNodesMax, nLevelsOdc, fUpdateLevel,
+                      fVerbose, fVeryVerbose);
+}
+
+
 /**Function*************************************************************
   Synopsis    []
   Description []
@@ -755,6 +768,30 @@ Abc_Ntk_t *Util_NtkResyn2(Abc_Ntk_t *pNtk, int fDelete) {
   Util_NtkRefactorZ(pNtkNew);
   Util_NtkRewriteZ(pNtkNew);
   pNtkNew = Util_NtkBalance(pNtkNew, 1);
+  return pNtkNew;
+}
+
+Abc_Ntk_t *Util_NtkResyn2rs(Abc_Ntk_t *pNtk, int fDelete) {
+  // b; rs -K 6; rw; rs -K 6 -N 2; rf; rs -K 8; b; rs -K 8 -N 2;
+  Abc_Ntk_t *pNtkNew = Util_NtkBalance(pNtk, fDelete);
+  Util_NtkResub(pNtkNew, 6, 1);
+  Util_NtkRewrite(pNtkNew);
+  Util_NtkResub(pNtkNew, 6, 2);
+  Util_NtkRefactor(pNtkNew);
+  Util_NtkResub(pNtkNew, 8, 1);
+  pNtkNew = Util_NtkBalance(pNtkNew, fDelete);
+  Util_NtkResub(pNtkNew, 8, 2);
+  // rw; rs -K 10; rwz; rs -K 10 -N 2; b; rs -K 12; rfz; rs -K 12 -N 2; rwz; b
+  Util_NtkRewrite(pNtkNew);
+  Util_NtkResub(pNtkNew, 10, 1);
+  Util_NtkRewriteZ(pNtkNew);
+  Util_NtkResub(pNtkNew, 10, 2);
+  pNtkNew = Util_NtkBalance(pNtkNew, fDelete);
+  Util_NtkResub(pNtkNew, 12, 1);
+  Util_NtkRefactorZ(pNtkNew);
+  Util_NtkResub(pNtkNew, 12, 2);
+  Util_NtkRewriteZ(pNtkNew);
+  pNtkNew = Util_NtkBalance(pNtkNew, fDelete);
   return pNtkNew;
 }
 
@@ -807,7 +844,7 @@ Abc_Ntk_t *Util_NtkDFraig(Abc_Ntk_t *pNtk, int fDelete, int fDoSparse) {
   extern Abc_Ntk_t *Abc_NtkDarFraig(
       Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve,
       int fTransfer, int fSpeculate, int fChoicing, int fVerbose);
-  int nConfLimit = 500;
+  int nConfLimit = 50;
   // int fDoSparse    = 0;
   int fProve = 0;
   int fSpeculate = 0;
@@ -821,75 +858,75 @@ Abc_Ntk_t *Util_NtkDFraig(Abc_Ntk_t *pNtk, int fDelete, int fDoSparse) {
 }
 
 Abc_Ntk_t *Util_NtkGiaSweep(Abc_Ntk_t *pNtk, int fDelete) {
-    extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
-    extern Abc_Ntk_t * Abc_NtkFromAigPhase( Aig_Man_t * pMan );
-    Abc_Ntk_t * pStrash;
-    Aig_Man_t * pAig;
-    Gia_Man_t * pGia, * pTemp;
-    Dch_Pars_t Pars, * pPars = &Pars;
-    Dch_ManSetDefaultParams( pPars );
-    // pPars->nBTLimit = 500;
-    // pPars->nSatVarMax = 2500;
-    char * pInits;
-    int fVerbose = 0;
-    pStrash = Abc_NtkStrash(pNtk, 0, 1, 0);
-    pAig = Abc_NtkToDar(pStrash, 0, 0);
-    Abc_NtkDelete(pStrash);
-    pGia = Gia_ManFromAig(pAig);
-    Aig_ManStop(pAig);
-    // perform undc/zero
-    pInits = Abc_NtkCollectLatchValuesStr(pNtk);
-    pGia = Gia_ManDupZeroUndc(pTemp = pGia, pInits, 0, 0, fVerbose);
-    Gia_ManStop(pTemp);
-    // pTemp = Cec_ManSatSweeping( pGia, pPars, 0 );
-    pTemp = Gia_ManFraigSweepSimple( pGia, pPars );
-    ABC_FREE(pInits);
-    pAig = Gia_ManToAig( pTemp, 0 );
-    Gia_ManStop(pTemp);
-    Abc_Ntk_t *pNtkNew = Abc_NtkFromAigPhase( pAig );
-    pNtkNew->pName = Extra_UtilStrsav(pAig->pName);
-    Aig_ManStop( pAig );
-    if (pNtkNew && fDelete) {
-      Abc_NtkDelete(pNtk);
-    }
-    return pNtkNew;
+  extern Aig_Man_t *Abc_NtkToDar(Abc_Ntk_t * pNtk, int fExors, int fRegisters);
+  extern Abc_Ntk_t *Abc_NtkFromAigPhase(Aig_Man_t * pMan);
+  Abc_Ntk_t *pStrash;
+  Aig_Man_t *pAig;
+  Gia_Man_t *pGia, *pTemp;
+  Dch_Pars_t Pars, *pPars = &Pars;
+  Dch_ManSetDefaultParams(pPars);
+  // pPars->nBTLimit = 500;
+  // pPars->nSatVarMax = 2500;
+  char *pInits;
+  int fVerbose = 0;
+  pStrash = Abc_NtkStrash(pNtk, 0, 1, 0);
+  pAig = Abc_NtkToDar(pStrash, 0, 0);
+  Abc_NtkDelete(pStrash);
+  pGia = Gia_ManFromAig(pAig);
+  Aig_ManStop(pAig);
+  // perform undc/zero
+  pInits = Abc_NtkCollectLatchValuesStr(pNtk);
+  pGia = Gia_ManDupZeroUndc(pTemp = pGia, pInits, 0, 0, fVerbose);
+  Gia_ManStop(pTemp);
+  // pTemp = Cec_ManSatSweeping( pGia, pPars, 0 );
+  pTemp = Gia_ManFraigSweepSimple(pGia, pPars);
+  ABC_FREE(pInits);
+  pAig = Gia_ManToAig(pTemp, 0);
+  Gia_ManStop(pTemp);
+  Abc_Ntk_t *pNtkNew = Abc_NtkFromAigPhase(pAig);
+  pNtkNew->pName = Extra_UtilStrsav(pAig->pName);
+  Aig_ManStop(pAig);
+  if (pNtkNew && fDelete) {
+    Abc_NtkDelete(pNtk);
+  }
+  return pNtkNew;
 }
 
 Abc_Ntk_t *Util_NtkGiaFraig(Abc_Ntk_t *pNtk, int fDelete) {
-    extern void Cec4_ManSetParams( Cec_ParFra_t * pPars );
-    extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
-    extern Abc_Ntk_t * Abc_NtkFromAigPhase( Aig_Man_t * pMan );
-    extern Gia_Man_t * Cec2_ManSimulateTest( Gia_Man_t * p, Cec_ParFra_t * pPars );
-    extern Gia_Man_t * Cec3_ManSimulateTest( Gia_Man_t * p, Cec_ParFra_t * pPars );
-    extern Gia_Man_t * Cec4_ManSimulateTest( Gia_Man_t * p, Cec_ParFra_t * pPars );
-    Abc_Ntk_t * pStrash;
-    Aig_Man_t * pAig;
-    Gia_Man_t * pGia, * pTemp;
-    Cec_ParFra_t ParsFra, * pPars = &ParsFra;
-    Cec4_ManSetParams( pPars );
-    char * pInits;
-    int fVerbose = 0;
-    pStrash = Abc_NtkStrash(pNtk, 0, 1, 0);
-    pAig = Abc_NtkToDar(pStrash, 0, 0);
-    Abc_NtkDelete(pStrash);
-    pGia = Gia_ManFromAig(pAig);
-    Aig_ManStop(pAig);
-    // perform undc/zero
-    pInits = Abc_NtkCollectLatchValuesStr(pNtk);
-    pGia = Gia_ManDupZeroUndc(pTemp = pGia, pInits, 0, 0, fVerbose);
-    Gia_ManStop(pTemp);
-    // pTemp = Cec_ManSatSweeping( pGia, pPars, 0 );
-    pTemp = Cec4_ManSimulateTest( pGia, pPars );
-    ABC_FREE(pInits);
-    pAig = Gia_ManToAig( pTemp, 0 );
-    Gia_ManStop(pTemp);
-    Abc_Ntk_t *pNtkNew = Abc_NtkFromAigPhase( pAig );
-    pNtkNew->pName = Extra_UtilStrsav(pAig->pName);
-    Aig_ManStop( pAig );
-    if (pNtkNew && fDelete) {
-      Abc_NtkDelete(pNtk);
-    }
-    return pNtkNew;
+  extern void Cec4_ManSetParams(Cec_ParFra_t * pPars);
+  extern Aig_Man_t *Abc_NtkToDar(Abc_Ntk_t * pNtk, int fExors, int fRegisters);
+  extern Abc_Ntk_t *Abc_NtkFromAigPhase(Aig_Man_t * pMan);
+  extern Gia_Man_t *Cec2_ManSimulateTest(Gia_Man_t * p, Cec_ParFra_t * pPars);
+  extern Gia_Man_t *Cec3_ManSimulateTest(Gia_Man_t * p, Cec_ParFra_t * pPars);
+  extern Gia_Man_t *Cec4_ManSimulateTest(Gia_Man_t * p, Cec_ParFra_t * pPars);
+  Abc_Ntk_t *pStrash;
+  Aig_Man_t *pAig;
+  Gia_Man_t *pGia, *pTemp;
+  Cec_ParFra_t ParsFra, *pPars = &ParsFra;
+  Cec4_ManSetParams(pPars);
+  char *pInits;
+  int fVerbose = 0;
+  pStrash = Abc_NtkStrash(pNtk, 0, 1, 0);
+  pAig = Abc_NtkToDar(pStrash, 0, 0);
+  Abc_NtkDelete(pStrash);
+  pGia = Gia_ManFromAig(pAig);
+  Aig_ManStop(pAig);
+  // perform undc/zero
+  pInits = Abc_NtkCollectLatchValuesStr(pNtk);
+  pGia = Gia_ManDupZeroUndc(pTemp = pGia, pInits, 0, 0, fVerbose);
+  Gia_ManStop(pTemp);
+  pTemp = Cec_ManSatSweeping(pGia, pPars, 0);
+  // pTemp = Cec4_ManSimulateTest( pGia, pPars );
+  ABC_FREE(pInits);
+  pAig = Gia_ManToAig(pTemp, 0);
+  Gia_ManStop(pTemp);
+  Abc_Ntk_t *pNtkNew = Abc_NtkFromAigPhase(pAig);
+  pNtkNew->pName = Extra_UtilStrsav(pAig->pName);
+  Aig_ManStop(pAig);
+  if (pNtkNew && fDelete) {
+    Abc_NtkDelete(pNtk);
+  }
+  return pNtkNew;
 }
 
 Abc_Ntk_t *Util_NtkCollapse(Abc_Ntk_t *pNtk, int fBddSizeMax, int fDelete) {
@@ -916,7 +953,7 @@ Abc_Ntk_t *Util_NtkStrash(Abc_Ntk_t *pNtk, int fDelete) {
   return pNtkNew;
 }
 
-Abc_Ntk_t * Util_NtkInverse( Abc_Ntk_t * pNtk, int fDelete ) {
+Abc_Ntk_t *Util_NtkInverse(Abc_Ntk_t *pNtk, int fDelete) {
   Abc_Ntk_t *pNtkNew = Abc_NtkDup(pNtk);
   Abc_Obj_t *pObj = Abc_NtkPo(pNtkNew, 0);
   Abc_ObjXorFaninC(pObj, 0);
@@ -925,9 +962,9 @@ Abc_Ntk_t * Util_NtkInverse( Abc_Ntk_t * pNtk, int fDelete ) {
   return pNtkNew;
 }
 
-Abc_Ntk_t * Util_NtkInversePi( Abc_Ntk_t * pNtk, int index, int fDelete ) {
-  Abc_Ntk_t * pNtkNew = Abc_NtkStartFrom(pNtk, pNtk->ntkType, pNtk->ntkFunc);
-  Abc_Obj_t * pObj;
+Abc_Ntk_t *Util_NtkInversePi(Abc_Ntk_t *pNtk, int index, int fDelete) {
+  Abc_Ntk_t *pNtkNew = Abc_NtkStartFrom(pNtk, pNtk->ntkType, pNtk->ntkFunc);
+  Abc_Obj_t *pObj;
   int i;
   Abc_NtkForEachPi(pNtk, pObj, i) {
     if (index == i) {
@@ -936,9 +973,7 @@ Abc_Ntk_t * Util_NtkInversePi( Abc_Ntk_t * pNtk, int index, int fDelete ) {
       pObj->pCopy = Abc_NtkPi(pNtkNew, i);
     }
   }
-  Abc_NtkForEachCo(pNtk, pObj, i) {
-    pObj->pCopy = Abc_NtkPo(pNtkNew, i);
-  }
+  Abc_NtkForEachCo(pNtk, pObj, i) { pObj->pCopy = Abc_NtkPo(pNtkNew, i); }
   Abc_AigForEachAnd(pNtk, pObj, i) {
     pObj->pCopy = Abc_AigAnd((Abc_Aig_t *)pNtkNew->pManFunc,
                              Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj));
@@ -1548,12 +1583,18 @@ void sigintHandler(int signal_number) {
   kill(C_PID, SIGTERM);
   orig_sighandler(signal_number);
 }
-int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
+void sigalrmHandler(int signal_number) {
+  printf("timeout!!\n");
+  kill(C_PID, SIGTERM);
+}
+int Util_CallProcess(char *command, int timeout, int fVerbose,
+                     char *exec_command, ...) {
   int status;
   struct sigaction orig_sig;
   sigaction(SIGINT, NULL, &orig_sig);
   orig_sighandler = orig_sig.sa_handler;
   signal(SIGINT, sigintHandler);
+  signal(SIGALRM, sigalrmHandler);
   va_list ap;
   char *args[256];
   // parse variable length arguments
@@ -1579,15 +1620,26 @@ int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...) {
     }
     execvp(command, args);
   } else {
-    wait(&status); // wait for child process
+    alarm(timeout);
+    waitpid(C_PID, &status, 0);
+    signal(SIGINT, orig_sighandler);
+    signal(SIGTERM, orig_sighandler);
+    signal(SIGSEGV, orig_sighandler);
     if (!WIFEXITED(status)) {
       printf("forked process execution failed\n");
-      exit(-1);
+      return 0;
     } else if (WIFSIGNALED(status)) {
+      // possibly caught by alarm, reset signal
+      signal(SIGALRM, SIG_DFL);
       printf("forked process terminated by signal\n");
-      exit(-1);
+      return 0;
     } else {
-      if (WEXITSTATUS(status)) {
+      if (WEXITSTATUS(status) != 1) { // some process exit abnormally...
+        printf("child process exit safe\n");
+        alarm(0);
+        return 1;
+      } else {
+        signal(SIGALRM, SIG_DFL);
         return 0;
       }
     }

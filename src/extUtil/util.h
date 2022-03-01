@@ -75,6 +75,7 @@ extern void Util_PrintTruthtable( Abc_Ntk_t * pNtk );
 
 extern Abc_Ntk_t * Util_NtkBalance( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkResyn2( Abc_Ntk_t * pNtk, int fDelete );
+extern Abc_Ntk_t *Util_NtkResyn2rs(Abc_Ntk_t *pNtk, int fDelete);
 extern Abc_Ntk_t * Util_NtkDc2( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkDrwsat( Abc_Ntk_t * pNtk, int fDelete );
 extern Abc_Ntk_t * Util_NtkIFraig( Abc_Ntk_t * pNtk, int fDelete );
@@ -90,6 +91,7 @@ extern void Util_NtkRewrite( Abc_Ntk_t * pNtk );
 extern void Util_NtkRewriteZ( Abc_Ntk_t * pNtk );
 extern void Util_NtkRefactor( Abc_Ntk_t * pNtk );
 extern void Util_NtkRefactorZ( Abc_Ntk_t * pNtk );
+extern void Util_NtkResub(Abc_Ntk_t *pNtk, int nCutsMax, int nNodesMax);
 // Obj
 extern Abc_Obj_t * Util_NtkCreatePoWithName( Abc_Ntk_t * pNtk, char * PoName, char * pSuffix );
 extern Abc_Obj_t * Util_NtkAppend(Abc_Ntk_t * pNtkDes, Abc_Ntk_t * pNtkSource);
@@ -117,7 +119,7 @@ extern int Util_NtkSat(Abc_Ntk_t * pNtk, int fVerbose);
 extern int Util_SatResultToBool(int SatResult);
 extern int Util_NtkIsEqual( Abc_Ntk_t * pNtk1, Abc_Ntk_t * pNtk2);
 // fork process
-extern int Util_CallProcess(char *command, int fVerbose, char *exec_command, ...);
+extern int Util_CallProcess(char *command, int timeout, int fVerbose, char *exec_command, ...);
 // 
 extern void Vec_IntPtrFree( Vec_Ptr_t * vVecInts );
 // 

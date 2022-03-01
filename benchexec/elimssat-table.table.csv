@@ -1,0 +1,8 @@
+tool	ABC 	ABC 	ABC 	ABC 	ABC 	ABC 	ABC 	ABC 	ABC 
+run set	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p	elimssat.k_ph_p
+benchmarks/k_ph_p/sdimacs/	#Prefix	#Exist_Var	#Random_Var	status	walltime (s)	Prob	#Eliminated_Quantifier	exist_elim time	random_elim time
+k_ph_p-2.sdimacs				done	0.18236431409604847				
+k_ph_p-3.sdimacs				done	1.0676394950132817				
+k_ph_p-305.sdimacs				done	5.06932366406545				
+k_ph_p-4.sdimacs				done	7.127572931116447				
+k_ph_p-5.sdimacs				TIMEOUT	16.004552844213322				

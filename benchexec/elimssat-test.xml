@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.18//EN" "https://www.sosy-lab.org/benchexec/benchmark-1.18.dtd">
+<benchmark tool="abc" timelimit="3600 s" hardtimelimit="3650 s" memlimit="32 GB" cpuCores="1">
+  <resultfiles></resultfiles>
+  <rundefinition name="elimssat">
+      <option name="-c">ssat</option>
+  </rundefinition>
+
+  <tasks name="tlc">
+      <include>../benchmarks/tlc-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="gttt_3x3">
+      <include>../benchmarks/gttt_3x3-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ev-pr-4x4-log">
+      <include>../benchmarks/ev-pr-4x4-log/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="arbiter">
+      <include>../benchmarks/arbiter-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="Tree">
+      <include>../benchmarks/Tree/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="RobotsD2">
+      <include>../benchmarks/RobotsD2-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="depots">
+      <include>../benchmarks/Planning-CTE/pipesnotankage/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="depots">
+      <include>../benchmarks/Planning-CTE/depots/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="Counter">
+      <include>../benchmarks/Counter/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="Connect2">
+      <include>../benchmarks/Connect2-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="Adder">
+      <include>../benchmarks/Adder-P/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="k_branch_p">
+      <include>../benchmarks/k_branch_n/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="k_ph_p">
+      <include>../benchmarks/k_ph_p/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_conformant">
+      <include>../benchmarks/ssatER/planning/conformant/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_tiger">
+      <include>../benchmarks/ssatER/planning/tiger/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_ToiletA">
+      <include>../benchmarks/ssatER/planning/ToiletA/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_Sand-Castle">
+      <include>../benchmarks/ssatER/planning/sand-castle/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_MaxCount">
+      <include>../benchmarks/ssatER/MaxCount/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="ER_MPEC">
+      <include>../benchmarks/ssatER/MPEC/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="RE_PEC">
+      <include>../benchmarks/ssatRE/PEC/sdimacs/*.sdimacs</include>
+  </tasks>
+  <tasks name="RE_stracomp">
+      <include>../benchmarks/ssatRE/stracomp/sdimacs/*.sdimacs</include>
+  </tasks>
+</benchmark>

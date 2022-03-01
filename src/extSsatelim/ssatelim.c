@@ -56,7 +56,7 @@ static void ssat_print_perf(ssat_solver *s) {
     printf("  > Solving not finish!\n");
     printf("  > Working on the quantifier type of   = %d\n",
            s->pPerf->current_type);
-    printf("  > Used BDD = %d\n", s->useBdd);
+    printf("  > Used BDD = %d\n", s->haveBdd);
     t_end = gettime();
     if (s->pPerf->current_type == Quantifier_Exist) {
       s->pPerf->tExists += tdiff(t_start, t_end);
@@ -68,10 +68,18 @@ static void ssat_print_perf(ssat_solver *s) {
   printf("  > Number of eliminated quantifier     = %d\n", s->pPerf->nExpanded);
   printf("  > Time consumed on exist elimination  = %lf\n", s->pPerf->tExists);
   printf("  > Time consumed on random elimination = %lf\n", s->pPerf->tRandom);
+  printf("  > Use BDD on exist elimination = %d\n", s->useBdd);
+  printf("  > success BDD on exist elimination = %d\n", s->successBdd);
+  printf("  > Use R2F on exist elimination = %d\n", s->useR2f);
+  printf("  > success R2F on exist elimination = %d\n", s->successR2f);
+  printf("  > Use Cadet on exist elimination = %d\n", s->useCadet);
+  printf("  > success Cadet on exist elimination = %d\n", s->successCadet);
+  printf("  > Use Manthan on exist elimination = %d\n", s->useManthan);
+  printf("  > success Manthan on exist elimination = %d\n", s->successManthan);
 }
 
 static void ssat_check_const(ssat_solver *s) {
-  if (s->useBdd) {
+  if (s->haveBdd) {
     if (Cudd_IsConstant(s->bFunc)) {
       if (Cudd_IsComplement(s->bFunc)) {
         s->result = 0;
@@ -119,10 +127,10 @@ static void ssat_solve_exist(ssat_solver *s, Vec_Int_t *pScope) {
 static void ssat_solve_afterelim(ssat_solver *s) {
   s->pPerf->nExpanded += 1;
 
-  if (s->doSynthesis && !s->useBdd) {
+  if (s->doSynthesis && !s->haveBdd) {
     ssat_synthesis(s);
   }
-  if (!s->useBdd) {
+  if (!s->haveBdd) {
     ssat_build_bdd(s);
   }
   ssat_check_const(s);
@@ -149,11 +157,15 @@ ssat_solver *ssat_solver_new() {
   s->pPerf->tRandom = 0;
   s->pPerf->fDone = 0;
   s->result = -1;
-  s->useBdd = 0;
+  s->haveBdd = 0;
   s->doSynthesis = 1;
-  s->useR2f = 1;
+  s->useR2f = 0;
   s->useManthan = 0;
   s->useCadet = 0;
+  s->successBdd = 0;
+  s->successR2f = 0;
+  s->successManthan = 0;
+  s->successCadet = 0;
   s->verbose = 0;
   s->useReorder = 1;
   s->useProjected = 1;
@@ -208,20 +220,20 @@ void ssat_parser_finished_process(ssat_solver *s, char *filename) {
   ssat_build_bdd(s);
   ssat_quatification_check(s);
   // perform manthan on the original cnf if the network is small enough
-  // if (!s->useBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
-  //   if (s->verbose) {
-  //     Abc_Print(1, "> exist on original cnf\n");
-  //   }
-  //   s->pPerf->current_type = Quantifier_Exist;
-  //   t_start = gettime();
-  //   ssat_solver_existouter(s, filename);
-  //   t_end = gettime();
-  //   s->pPerf->tExists += tdiff(t_start, t_end);
-  //   s->pPerf->nExpanded += 1;
-  //   Vec_IntPop(s->pQuanType);
-  //   Vec_PtrPop(s->pQuan);
-  //   Vec_FltPop(s->pQuanWeight);
-  // }
+  if (!s->haveBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
+    if (s->verbose) {
+      Abc_Print(1, "> exist on original cnf\n");
+    }
+    s->pPerf->current_type = Quantifier_Exist;
+    t_start = gettime();
+    ssat_solver_existouter(s, filename);
+    t_end = gettime();
+    s->pPerf->tExists += tdiff(t_start, t_end);
+    s->pPerf->nExpanded += 1;
+    Vec_IntPop(s->pQuanType);
+    Vec_PtrPop(s->pQuan);
+    Vec_FltPop(s->pQuanWeight);
+  }
 }
 
 int ssat_solver_solve2(ssat_solver *s) {
@@ -230,7 +242,7 @@ int ssat_solver_solve2(ssat_solver *s) {
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
     QuantifierType type = Vec_IntEntry(s->pQuanType, i);
-    if (i == 0 && type == Quantifier_Exist && !s->useBdd && s->useProjected) {
+    if (i == 0 && type == Quantifier_Exist && !s->haveBdd && s->useProjected) {
       fExists = true; // turn on sat solving on the outermost exists
       break;
     }
@@ -268,11 +280,14 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fVerbose) {
   sprintf(temp_file, "%s.sdimacs", _solver->pName);
 
   // convert benchmarks to 0.5 prob
-  if (!Util_CallProcess("python3", _solver->verbose, "python3",
+  if (!Util_CallProcess("python3", 0, _solver->verbose, "python3",
                         "script/general05.py", file, temp_file, NULL)) {
-    Util_CallProcess("python3", _solver->verbose, "python3",
+    Util_CallProcess("python3", 0, _solver->verbose, "python3",
                      "script/wmcrewriting2.py", file, temp_file, NULL);
   }
+  // Util_CallProcess("./hqspre", 0, _solver->verbose, "./hqspre",
+  //                   temp_file, "-o", temp_file, NULL);
+
 
   // open file
   ssat_Parser(_solver, temp_file);
@@ -296,9 +311,9 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fVerbose) {
   } else if (result == l_Unsupp) {
     Abc_Print(1, "s UNSUPPORT\n");
   }
-  printf("  > Used BDD = %d\n", _solver->useBdd);
+  printf("  > Used BDD = %d\n", _solver->haveBdd);
   ssat_print_perf(_solver);
-  ssat_solver_delete(_solver);
+  // ssat_solver_delete(_solver);
   remove(temp_file);
 }
 

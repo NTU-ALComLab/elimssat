@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<!DOCTYPE table PUBLIC "+//IDN sosy-lab.org//DTD BenchExec table 1.10//EN" "http://www.sosy-lab.org/benchexec/table-1.10.dtd">
+
+<table>
+    <column title="#Prefix">Number of Prefixes</column>
+    <column title="#Exist_Var">Number of Existitential Variables</column>
+    <column title="#Random_Var">Number of Randomize Variables</column>
+    <column title="status"/>
+    <column title="walltime"/>
+    <column title="Prob">Result</column>
+    <column title="#Eliminated_Quantifier">Number of eliminated quantifier</column>
+    <column title="exist_elim time">Time consumed on exist elimination</column>
+    <column title="random_elim time">Time consumed on random elimination</column>
+    <column title="use BDD">Use BDD on exist elimination</column>
+    <column title="success BDD">success BDD on exist elimination</column>
+    <column title="use R2F">Use R2F on exist elimination</column>
+    <column title="success R2F">success R2F on exist elimination</column>
+    <column title="use Cadet">Use Cadet on exist elimination</column>
+    <column title="success Cadet">success Cadet on exist elimination</column>
+    <column title="use Manthan">Use Manthan on exist elimination</column>
+    <column title="success Manthan">success Manthan on exist elimination</column>
+</table>
+

@@ -36,9 +36,9 @@ void ssat_build_bdd(ssat_solver *s) {
   if (s->dd == NULL) {
     if (s->verbose)
       Abc_Print(1, "> Build BDD failed\n");
-    s->useBdd = 0;
+    s->haveBdd = 0;
   } else {
-    s->useBdd = 1;
+    s->haveBdd = 1;
     s->bFunc = (DdNode *)Abc_ObjGlobalBdd(Abc_NtkCo(s->pNtk, 0));
     if (s->verbose) {
       Abc_Print(1, "> Build BDD success\n");

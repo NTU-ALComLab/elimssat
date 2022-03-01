@@ -1,5 +1,6 @@
 #include "bdd/extrab/extraBdd.h" //
 #include "extUtil/util.h"
+#include "extUtil/fasttime.h"
 #include "ssatBooleanSort.h"
 #include "ssatelim.h"
 
@@ -61,13 +62,13 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
     Vec_IntPush(pRandomReverse, entry);
   }
   Vec_Int_t *pSort = Vec_IntAlloc(0);
-  if (s->useBdd) {
+  if (s->haveBdd) {
     Cudd_AutodynDisable(s->dd);
   }
   Vec_IntForEachEntry(pRandomReverse, entry, index) {
     Vec_IntPush(pSort, entry);
     if (index < n) continue;
-    if (s->useBdd) {
+    if (s->haveBdd) {
       s->bFunc = Util_sortBitonicBDD(s->dd, s->bFunc, pSort);
       Cudd_Ref(s->bFunc);
       if (s->useReorder) {
@@ -82,7 +83,10 @@ void ssat_solver_randomelim(ssat_solver *s, Vec_Int_t *pScope,
                   Cudd_DagSize(s->bFunc));
       }
     } else {
+      fasttime_t start = gettime();
       s->pNtk = Util_sortBitonic(s->pNtk, pSort);
+      fasttime_t end = gettime();
+      printf("time spend on sorting : %lf\n", tdiff(start, end));
       Abc_AigCleanup((Abc_Aig_t *)s->pNtk->pManFunc);
       s->pNtk = Util_NtkDFraig(s->pNtk, 1, 1);
       // s->pNtk = Util_NtkGiaFraig(s->pNtk, 1);
@@ -115,7 +119,6 @@ static int ssat_solve_append(Abc_Ntk_t *pNtk, Vec_Int_t *pRandom) {
     pPo = Abc_ObjNot(pPo);
   }
   Abc_ObjAddFanin(Abc_NtkPo(pNtkNew, 0), pPo);
-  pNtkNew = Util_NtkDc2(pNtkNew, 1);
   int res = Util_NtkSat(pNtkNew, 0);
   printf("%s\n", res == 0 ? "SAT" : "UNSAT");
   return res;
@@ -139,7 +142,7 @@ void ssat_randomCompute(ssat_solver *s, Vec_Int_t *pRandomReverse,
                         int fExists) {
   if (s->pPerf->fDone)
     return;
-  if (s->useBdd) {
+  if (s->haveBdd) {
     s->pNtk = Abc_NtkDeriveFromBdd(s->dd, s->bFunc, NULL, NULL);
     s->pNtk = Util_NtkStrash(s->pNtk, 1);
   }

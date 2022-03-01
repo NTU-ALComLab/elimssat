@@ -150,11 +150,11 @@ Abc_Ntk_t* rel2FuncEQ2(Abc_Ntk_t* pNtk, vector<char*> & vNameY, vector<Abc_Ntk_t
             return NULL;
         }
         pNtkFunc = Util_NtkDFraig(pNtkFunc, 1, 1);
-        pNtkFunc = Util_NtkResyn2(pNtkFunc, 1);
+        pNtkFunc = Util_NtkResyn2rs(pNtkFunc, 1);
         pNtkFunc = Util_NtkDc2(pNtkFunc, 1);
         pNtkRel = replaceX(pNtkRel, pNtkFunc, vNameY[i]);
         pNtkRel = Util_NtkDFraig(pNtkRel, 1, 1);
-        pNtkRel = Util_NtkResyn2(pNtkRel, 1);
+        pNtkRel = Util_NtkResyn2rs(pNtkRel, 1);
         pNtkRel = Util_NtkDc2(pNtkRel, 1);
         cout << Abc_AigLevel(pNtkFunc) << "\t" << Abc_NtkObjNum(pNtkFunc) << "\t" << Abc_NtkPiNum(pNtkFunc) << endl;
         vFunc.push_back(pNtkFunc);
