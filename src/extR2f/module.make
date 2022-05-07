@@ -1,9 +1,2 @@
-SRC +=	src/extR2f/CnfConvert.cpp
-SRC +=	src/extR2f/IntSolver.cpp
-SRC +=	src/extR2f/bddRel2Func.cpp
-SRC +=	src/extR2f/eqRel2Func.cpp
-SRC +=	src/extR2f/intRel2Func.cpp
 SRC +=	src/extR2f/intRel2Func2.cpp
-SRC +=	src/extR2f/misc.cpp
 SRC +=	src/extR2f/subRel2Func.cpp
-SRC +=	src/extR2f/r2fCommand.cpp
