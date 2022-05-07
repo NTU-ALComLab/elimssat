@@ -465,6 +465,54 @@ void Util_NtkCreatePiFrom(Abc_Ntk_t *pNtkDest, Abc_Ntk_t *pNtkOri,
   }
 }
 
+Abc_Obj_t* Util_NtkCreateMultiOr(Abc_Ntk_t *pNtk, Vec_Ptr_t *pVec) {
+  int size = Vec_PtrSize(pVec);
+  while (size > 1) {
+    int half = size / 2;
+    if (size % 2 == 0) {
+      for (int i = 0; i < half; i++) {
+        pVec->pArray[i] = (void*)Abc_AigOr((Abc_Aig_t *)pNtk->pManFunc,
+                               (Abc_Obj_t*)pVec->pArray[2 * i],
+                               (Abc_Obj_t*)pVec->pArray[2 * i + 1]);
+      }
+      size = half;
+    } else {
+      for (int i = 0; i < half; i++) {
+        pVec->pArray[i] = (void*)Abc_AigOr((Abc_Aig_t *)pNtk->pManFunc,
+                               (Abc_Obj_t*)pVec->pArray[2 * i],
+                               (Abc_Obj_t*)pVec->pArray[2 * i + 1]);
+      }
+      pVec->pArray[half] = pVec->pArray[size - 1];
+      size = half + 1;
+    }
+  }
+  return (Abc_Obj_t*)pVec->pArray[0];
+}
+
+Abc_Obj_t* Util_NtkCreateMultiAnd(Abc_Ntk_t *pNtk, Vec_Ptr_t *pVec) {
+  int size = Vec_PtrSize(pVec);
+  while (size > 1) {
+    int half = size / 2;
+    if (size % 2 == 0) {
+      for (int i = 0; i < half; i++) {
+        pVec->pArray[i] = (void*)Abc_AigAnd((Abc_Aig_t *)pNtk->pManFunc,
+                               (Abc_Obj_t*)pVec->pArray[2 * i],
+                               (Abc_Obj_t*)pVec->pArray[2 * i + 1]);
+      }
+      size = half;
+    } else {
+      for (int i = 0; i < half; i++) {
+        pVec->pArray[i] = (void*)Abc_AigAnd((Abc_Aig_t *)pNtk->pManFunc,
+                               (Abc_Obj_t*)pVec->pArray[2 * i],
+                               (Abc_Obj_t*)pVec->pArray[2 * i + 1]);
+      }
+      pVec->pArray[half] = pVec->pArray[size - 1];
+      size = half + 1;
+    }
+  }
+  return pVec->pArray[0];
+}
+
 /**Function*************************************************************
   Synopsis    []
   Description []
@@ -844,7 +892,7 @@ Abc_Ntk_t *Util_NtkDFraig(Abc_Ntk_t *pNtk, int fDelete, int fDoSparse) {
   extern Abc_Ntk_t *Abc_NtkDarFraig(
       Abc_Ntk_t * pNtk, int nConfLimit, int fDoSparse, int fProve,
       int fTransfer, int fSpeculate, int fChoicing, int fVerbose);
-  int nConfLimit = 50;
+  int nConfLimit = 100;
   // int fDoSparse    = 0;
   int fProve = 0;
   int fSpeculate = 0;

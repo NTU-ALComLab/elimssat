@@ -97,6 +97,8 @@ extern Abc_Obj_t * Util_NtkCreatePoWithName( Abc_Ntk_t * pNtk, char * PoName, ch
 extern Abc_Obj_t * Util_NtkAppend(Abc_Ntk_t * pNtkDes, Abc_Ntk_t * pNtkSource);
 extern Abc_Obj_t * Util_NtkAppendWithPiOrder( Abc_Ntk_t * pNtkDes, Abc_Ntk_t * pNtkSource, int start_index );
 
+extern Abc_Obj_t * Util_NtkCreateMultiAnd(Abc_Ntk_t * pNtk, Vec_Ptr_t* pVec);
+extern Abc_Obj_t * Util_NtkCreateMultiOr(Abc_Ntk_t * pNtk, Vec_Ptr_t* pVec);
 extern Abc_Obj_t * Util_AigNtkMaj( Abc_Ntk_t * pNtk, Abc_Obj_t * p0, Abc_Obj_t * p1, Abc_Obj_t * p2 );
 extern Abc_Obj_t * Util_AigNtkAnd( Abc_Ntk_t * pNtk, Abc_Obj_t * p0, Abc_Obj_t * p1 );
 extern Abc_Obj_t * Util_AigNtkOr ( Abc_Ntk_t * pNtk, Abc_Obj_t * p0, Abc_Obj_t * p1 );
