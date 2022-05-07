@@ -181,7 +181,6 @@ int ssat_addclause(ssat_solver *s, lit *begin, lit *end) {
   return 1;
 }
 
-
 void ssat_Parser(ssat_solver *s, char *filename) {
   if (filename == NULL) {
     return;
@@ -281,9 +280,8 @@ void ssat_Parser(ssat_solver *s, char *filename) {
     }
     objVec.push_back(ssat_createMultiOr(s->pNtk, clauseVec));
   }
-  for (auto i: formula._unit_stack)
+  // for (auto i: formula._unit_stack)
   s->pPo = ssat_createMultiAnd(s->pNtk, objVec);
-  exit(1);
 
   // ssat_ParseFile(s, gzopen(filename, "rb"));
   int entry, index;
