@@ -39,17 +39,21 @@ static int ssat_Command( Abc_Frame_t * pAbc, int argc, char ** argv )
     int fVerbose   = 0;
     int fReorder   = 1;
     int fProjected = 1;
+    int fPreprocess = 0;
 
     char * pFileName;
     // Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     // Abc_Ntk_t * pNtkResult;
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "prvSh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "PprvSh" ) ) != EOF )
     {
         switch ( c )
         {
             case 'p':
                 fProjected ^= 1;
+                break;
+            case 'P':
+                fPreprocess ^= 1;
                 break;
             case 'r':
                 fReorder ^= 1;
@@ -71,7 +75,7 @@ static int ssat_Command( Abc_Frame_t * pAbc, int argc, char ** argv )
     pFileName = argv[globalUtilOptind];
 
     // call main function
-    ssat_main(pFileName, fReorder, fProjected, fVerbose);
+    ssat_main(pFileName, fReorder, fProjected, fPreprocess, fVerbose);
 
     return 0;
     

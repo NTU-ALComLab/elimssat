@@ -148,8 +148,6 @@ ssat_solver *ssat_solver_new() {
   s->pQuanType = Vec_IntAlloc(0);
   s->pUnQuan = Vec_IntAlloc(0);
   s->pQuanWeight = Vec_FltAlloc(0);
-  s->varPiIndex = Vec_IntAlloc(0);
-  s->piVarIndex = Vec_IntAlloc(0);
   s->pPerf = ABC_ALLOC(ssat_solver_perf, 1);
   s->pPerf->current_type = -1;
   s->pPerf->nExpanded = 0;
@@ -207,35 +205,40 @@ static void ssat_quatification_check(ssat_solver *s) {
       Vec_IntPush(s->pUnQuan, index);
     }
   }
-  assert(Vec_IntSize(s->pUnQuan) == 0);
 }
 
 void ssat_parser_finished_process(ssat_solver *s, char *filename) {
   // Connect the output
-  Abc_ObjAddFanin(Abc_NtkPo(s->pNtk, 0), s->pPo);
+  if (Abc_ObjFaninNum(Abc_NtkPo(s->pNtk, 0)) == 0)
+    Abc_ObjAddFanin(Abc_NtkPo(s->pNtk, 0), s->pPo);
   s->pNtk = Util_NtkStrash(s->pNtk, 1);
   Abc_NtkCheck(s->pNtk);
   // try building BDD
   ssat_synthesis(s);
-  ssat_build_bdd(s);
+  // ssat_build_bdd(s);
   ssat_quatification_check(s);
   // perform manthan on the original cnf if the network is small enough
-  if (!s->haveBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
-    if (s->verbose) {
-      Abc_Print(1, "> exist on original cnf\n");
-    }
-    s->pPerf->current_type = Quantifier_Exist;
-    t_start = gettime();
-    ssat_solver_existouter(s, filename);
-    t_end = gettime();
-    s->pPerf->tExists += tdiff(t_start, t_end);
-    s->pPerf->nExpanded += 1;
-    Vec_IntPop(s->pQuanType);
-    Vec_PtrPop(s->pQuan);
-    Vec_FltPop(s->pQuanWeight);
-  }
+  // if (!s->haveBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
+  //   if (s->verbose) {
+  //     Abc_Print(1, "> exist on original cnf\n");
+  //   }
+  //   s->pPerf->current_type = Quantifier_Exist;
+  //   t_start = gettime();
+  //   ssat_solver_existouter(s, filename);
+  //   t_end = gettime();
+  //   s->pPerf->tExists += tdiff(t_start, t_end);
+  //   s->pPerf->nExpanded += 1;
+  //   Vec_IntPop(s->pQuanType);
+  //   Vec_PtrPop(s->pQuan);
+  // }
 }
 
+/**
+ * @brief The main routine of SSAT solving with quantifier elimination
+ *
+ * @param s ssat solver struct
+ * @return the satisfying probability
+ */
 int ssat_solver_solve2(ssat_solver *s) {
   Vec_Int_t *pRandomReverse = Vec_IntAlloc(0);
   int fExists = false;
@@ -263,10 +266,10 @@ int ssat_solver_solve2(ssat_solver *s) {
   ssat_randomCompute(s, pRandomReverse, fExists);
   Vec_IntFree(pRandomReverse);
   s->pPerf->fDone = 1;
-  return l_True;
+  return s->result;
 }
 
-void ssat_main(char *filename, int fReorder, int fProjected, int fVerbose) {
+void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
@@ -279,38 +282,25 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fVerbose) {
   _solver->pName = get_filename(filename);
   sprintf(temp_file, "%s.sdimacs", _solver->pName);
 
-  // convert benchmarks to 0.5 prob
-  if (!Util_CallProcess("python3", 0, _solver->verbose, "python3",
-                        "script/general05.py", file, temp_file, NULL)) {
+  if (fPreprocess) {
+    Util_CallProcess("./bin/hqspre", 0, _solver->verbose, "./hqspre", "--preserve_gates", "1",
+                      "-o", temp_file, file, NULL);
     Util_CallProcess("python3", 0, _solver->verbose, "python3",
-                     "script/wmcrewriting2.py", file, temp_file, NULL);
+                      "script/wmcrewriting2.py", temp_file, temp_file, NULL);
+  } else {
+    Util_CallProcess("python3", 0, _solver->verbose, "python3",
+                      "script/wmcrewriting2.py", file, temp_file, NULL);
   }
-  // Util_CallProcess("./hqspre", 0, _solver->verbose, "./hqspre",
-  //                   temp_file, "-o", temp_file, NULL);
-
 
   // open file
   ssat_Parser(_solver, temp_file);
   ssat_parser_finished_process(_solver, temp_file);
   ssat_check_const(_solver);
-  int result = ssat_solver_solve2(_solver);
+  ssat_solver_solve2(_solver);
 
   Abc_Print(1, "\n");
   Abc_Print(1, "==== Solving Result ====\n");
-  if (result == l_False) {
-    // Abc_Print( 1, "s UNSATISFIABLE\n" );
-    Abc_Print(1, "s UNSATISFIABLE\n");
-    Abc_Print(1, "  > Result = %e\n", _solver->result);
-  } else if (result == l_True) {
-    // print probabilty
-    Abc_Print(1, "s SATISFIABLE\n");
-    Abc_Print(1, "  > Result = %e\n", _solver->result);
-
-  } else if (result == l_Undef) {
-    Abc_Print(1, "s UNKNOWN\n");
-  } else if (result == l_Unsupp) {
-    Abc_Print(1, "s UNSUPPORT\n");
-  }
+  Abc_Print(1, "  > Result = %lf\n", _solver->result);
   printf("  > Used BDD = %d\n", _solver->haveBdd);
   ssat_print_perf(_solver);
   // ssat_solver_delete(_solver);

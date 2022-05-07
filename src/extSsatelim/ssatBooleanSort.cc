@@ -289,12 +289,12 @@ Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
   int node_count = Abc_NtkNodeNum(pNtkOld);
   pNtkNew = random_eliminate_reverse_all_bit2(pNtkOld, pScopeReverse);
   pNtkNew = Util_NtkDFraig(pNtkNew, 1, 0);
+  pNtkNew = Util_NtkDc2(pNtkNew, 1);
   pNtkNew = Util_NtkResyn2rs(pNtkNew, 1);
   if (Abc_NtkNodeNum(pNtkNew) > node_count * 1.2) {
     pNtkNew = Util_NtkDFraig(pNtkNew, 1, 0);
-    pNtkNew = Util_NtkResyn2rs(pNtkNew, 1);
+    // pNtkNew = Util_NtkResyn2rs(pNtkNew, 1);
   }
-  printf("reverse all: %d\n", Abc_NtkNodeNum(pNtkNew));
   Abc_NtkDelete(pNtkOld);
   pNtkOld = pNtkNew;
   int index;
@@ -308,11 +308,11 @@ Abc_Ntk_t * Util_sortBitonic(Abc_Ntk_t * pNtk, Vec_Int_t * pScopeReverse)
     pNtkNew = random_eliminate_reverse_one_pi3(pNtkOld, pScopeReverse, index - 1);
     // Abc_Ntk_t *pNtkNew2 = random_eliminate_reverse_one_pi3(Abc_NtkDup(pNtkOld), pScopeReverse, index - 1);
     // Abc_NtkDarCec(pNtkNew, pNtkNew2, 100000, 0, 0);
-    if (Abc_NtkNodeNum(pNtkNew) > node_count * 1.1) {
+    if (Abc_NtkNodeNum(pNtkNew) > node_count * 1.2) {
       pNtkNew = Util_NtkDFraig(pNtkNew, 1, 0);
+      pNtkNew = Util_NtkDc2(pNtkNew, 1);
       pNtkNew = Util_NtkResyn2rs(pNtkNew, 1);
     }
-    printf("reverse one: %d\n", Abc_NtkNodeNum(pNtkNew));
     Abc_NtkDelete(pNtkOld);
     pNtkOld = pNtkNew;
   }

@@ -1,3 +1,4 @@
+#include "base/abc/abc.h"
 #include "ssatelim.h"
 #include "extUtil/util.h"
 
@@ -25,13 +26,12 @@ void ssat_build_bdd(ssat_solver *s) {
   int fBddSizeMax = (Abc_NtkNodeNum(s->pNtk) < fBddSizeMin)
                         ? fBddSizeMin
                         : Abc_NtkNodeNum(s->pNtk) * 1.2;
-  if (Abc_NtkNodeNum(s->pNtk) > 10000) {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
-                                                fReorder, fReverse, fVerbose);
-  } else {
-    s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, 80000, 1, fReorder,
-                                                fReverse, fVerbose);
+  fBddSizeMax = Abc_NtkObjNum(s->pNtk) > fBddSizeMin ? fBddSizeMax : 50000;
+  if (s->verbose) {
+    printf("Construct BDD with max size = %d\n", fBddSizeMax);
   }
+  s->dd = (DdManager *)Abc_NtkBuildGlobalBdds(s->pNtk, fBddSizeMax, 1,
+                                              fReorder, fReverse, fVerbose);
   s->bFunc = NULL;
   if (s->dd == NULL) {
     if (s->verbose)

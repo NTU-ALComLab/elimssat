@@ -13,30 +13,30 @@
 ///                          INCLUDES                                ///
 ////////////////////////////////////////////////////////////////////////
 
+#include "base/abc/abc.h"
+#include "extMinisat/utils/ParseUtils.h"
+#include "extSsatelim/literal.hpp"
 #include "extUtil/util.h"
 #include "formula.hpp"
+#include <vector>
 #include "ssatelim.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 #include <zlib.h>
+
+
 // #include <math.h>
 #include <math.h>
 using namespace std;
 
 ABC_NAMESPACE_IMPL_START
 
-////////////////////////////////////////////////////////////////////////
-///                        DECLARATIONS                              ///
-////////////////////////////////////////////////////////////////////////
-
 static const int DEBUG_PRINT = 0;
 static hqspre::Formula formula;
 
-////////////////////////////////////////////////////////////////////////
-///                     FUNCTION DEFINITIONS                         ///
-////////////////////////////////////////////////////////////////////////
 static const unsigned BUFLEN = 1024000;
 static int CLAUSE_NUM = 0;
 static int PREFIX_NUM = 0;
@@ -46,6 +46,90 @@ static int RANDOM_NUM = 0;
 static void error(const char *const msg) {
   std::cerr << msg << "\n";
   exit(255);
+}
+
+static void ssat_addScope(ssat_solver *s, std::set<hqspre::Variable> &var_set,
+                          QuantifierType type) {
+  Vec_Int_t *pScope;
+  if (Vec_IntSize(s->pQuanType) && Vec_IntEntryLast(s->pQuanType) == type) {
+    pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
+  } else {
+    pScope = Vec_IntAlloc(0);
+    Vec_PtrPush(s->pQuan, pScope);
+    Vec_IntPush(s->pQuanType, type);
+  }
+
+  for (auto &v : var_set) {
+    Vec_IntPush(pScope, v - 1);
+  }
+}
+
+static Abc_Obj_t *ssat_createMultiOr(Abc_Ntk_t *pNtk,
+                                     vector<Abc_Obj_t *> &objVec) {
+  int size = objVec.size();
+  while (size > 1) {
+    int half = size / 2;
+    if (size % 2 == 0) {
+      for (int i = 0; i < half; i++) {
+        objVec[i] = Abc_AigOr((Abc_Aig_t *)pNtk->pManFunc, objVec[2 * i],
+                              objVec[2 * i + 1]);
+      }
+      size = half;
+    } else {
+      for (int i = 0; i < half; i++) {
+        objVec[i] = Abc_AigOr((Abc_Aig_t *)pNtk->pManFunc, objVec[2 * i],
+                              objVec[2 * i + 1]);
+      }
+      objVec[half] = objVec[size - 1];
+      size = half + 1;
+    }
+  }
+  return objVec[0];
+}
+
+static Abc_Obj_t *ssat_createMultiAnd(Abc_Ntk_t *pNtk,
+                                      vector<Abc_Obj_t *> &objVec) {
+  int size = objVec.size();
+  while (size > 1) {
+    int half = size / 2;
+    if (size % 2 == 0) {
+      for (int i = 0; i < half; i++) {
+        objVec[i] = Abc_AigAnd((Abc_Aig_t *)pNtk->pManFunc, objVec[2 * i],
+                               objVec[2 * i + 1]);
+      }
+      size = half;
+    } else {
+      for (int i = 0; i < half; i++) {
+        objVec[i] = Abc_AigAnd((Abc_Aig_t *)pNtk->pManFunc, objVec[2 * i],
+                               objVec[2 * i + 1]);
+      }
+      objVec[half] = objVec[size - 1];
+      size = half + 1;
+    }
+  }
+  return objVec[0];
+}
+
+static Abc_Obj_t *
+ssat_createAndGate(ssat_solver *s, const hqspre::Gate &g,
+                   const unordered_map<hqspre::Variable, int> &varObjMap) {
+  Abc_Obj_t *pOut;
+  // create a balance AIG network instead a flat conversion
+  vector<Abc_Obj_t *> objVec;
+  for (auto &l : g._input_literals) {
+    int index = varObjMap.at(hqspre::lit2var(l));
+    Abc_Obj_t *pObj = Abc_NtkPi(s->pNtk, index)->pCopy;
+    objVec.push_back(Abc_ObjNotCond(pObj, hqspre::isNegative(l)));
+  }
+  pOut = ssat_createMultiAnd(s->pNtk, objVec);
+  objVec.clear();
+  pOut = Abc_ObjNotCond(pOut, hqspre::isNegative(g._output_literal));
+  Abc_NtkPi(s->pNtk, varObjMap.at(hqspre::lit2var(g._output_literal)))->pCopy =
+      pOut;
+  for (auto &c_nr : g._encoding_clauses) {
+    formula.removeClause(c_nr);
+  }
+  return pOut;
 }
 
 int ssat_addScope(ssat_solver *s, int *begin, int *end, QuantifierType type) {
@@ -97,209 +181,119 @@ int ssat_addclause(ssat_solver *s, lit *begin, lit *end) {
   return 1;
 }
 
-void ssat_readHeader_cnf(ssat_solver *s, string &str_in) {
-  string str = str_in.substr(6); // for the length of str "p cnf "
-  std::string::size_type sz = 0;
-
-  long long nVar = stoll(str, &sz);
-  str = str.substr(sz);
-  if (DEBUG_PRINT)
-    std::cout << " nVar: " << nVar << '\n';
-  ssat_solver_setnvars(s, nVar);
-  long long nClause = stoll(str, &sz);
-  if (DEBUG_PRINT)
-    std::cout << " nClause: " << nClause << '\n';
-}
-
-void ssat_readHeader(ssat_solver *s, string &str) {
-  ssat_readHeader_cnf(s, str);
-}
-
-void ssat_readExistence(ssat_solver *s, string &str_in) {
-  Vec_Int_t *p = Vec_IntAlloc(0);
-  string str = str_in.substr(2); // for the length of str "e "
-  std::string::size_type sz = 0;
-  if (DEBUG_PRINT)
-    cout << "e:" << endl;
-
-  while (str.length()) {
-    long long var = stoll(str, &sz);
-    if (var == 0) {
-      break;
-    }
-
-    if (DEBUG_PRINT)
-      cout << " var:" << var << endl;
-    Vec_IntPush(p, var);
-    str = str.substr(sz + 1);
-    while (str[0] == ' ') {
-      str = str.substr(1);
-    }
-  }
-
-  if (Vec_IntSize(p) > 0) {
-    ssat_addexistence(s, Vec_IntArray(p), Vec_IntLimit(p));
-  }
-  Vec_IntFree(p);
-}
-
-void ssat_readForall(ssat_solver *s, string &str_in) {
-  Vec_Int_t *p = Vec_IntAlloc(0);
-  string str = str_in.substr(2); // for the length of str "a "
-  std::string::size_type sz = 0;
-  if (DEBUG_PRINT)
-    cout << "a:" << endl;
-
-  while (str.length()) {
-    long long var = stoll(str, &sz);
-    if (var == 0) {
-      break;
-    }
-
-    if (DEBUG_PRINT)
-      cout << " var:" << var << endl;
-    Vec_IntPush(p, var);
-    str = str.substr(sz + 1);
-    while (str[0] == ' ') {
-      str = str.substr(1);
-    }
-  }
-
-  if (Vec_IntSize(p) > 0) {
-    ssat_addforall(s, Vec_IntArray(p), Vec_IntLimit(p));
-  }
-  Vec_IntFree(p);
-}
-
-void ssat_readRandom(ssat_solver *s, string &str_in) {
-  Vec_Int_t *p = Vec_IntAlloc(0);
-  string str = str_in.substr(2); // for the length of str "r "
-  std::string::size_type sz = 0;
-  if (DEBUG_PRINT)
-    cout << "r:" << endl;
-
-  double prob = stod(str, &sz);
-  if (DEBUG_PRINT)
-    cout << " prob:" << prob << endl;
-  str = str.substr(sz + 1);
-
-  while (str.length()) {
-    long long var = stoll(str, &sz);
-    if (var == 0) {
-      break;
-    }
-
-    if (DEBUG_PRINT)
-      cout << " var:" << var << endl;
-    Vec_IntPush(p, var);
-    str = str.substr(sz + 1);
-    while (str[0] == ' ') {
-      str = str.substr(1);
-    }
-  }
-
-  if (Vec_IntSize(p) > 0) {
-    ssat_addrandom(s, Vec_IntArray(p), Vec_IntLimit(p), prob);
-  }
-  Vec_IntFree(p);
-}
-
-void ssat_readClause(ssat_solver *s, string &str_in) {
-  Vec_Int_t *p = Vec_IntAlloc(0);
-  string str = str_in;
-  std::string::size_type sz = 0;
-
-  while (str.length()) {
-    long long lit = stoll(str, &sz);
-    if (lit == 0) {
-      break;
-    }
-
-    if (DEBUG_PRINT)
-      cout << "lit:" << lit << endl;
-    Vec_IntPush(p, toLitCond(abs(lit), signbit(lit)));
-    str = str.substr(sz + 1);
-    while (str[0] == ' ') {
-      str = str.substr(1);
-    }
-  }
-
-  ssat_addclause(s, Vec_IntArray(p), Vec_IntLimit(p));
-  Vec_IntFree(p);
-}
-
-void ssat_lineHandle(ssat_solver *s, string &in_str) {
-  if (in_str.length() == 0 || in_str[0] == '\n' || in_str[0] == '\r') {
-    return;
-  } else if (in_str[0] == 'c') {
-    // skip command line
-    return;
-  } else if (in_str[0] == 'p') {
-    ssat_readHeader(s, in_str);
-  } else if (in_str[0] == 'e') {
-    ssat_readExistence(s, in_str);
-  } else if (in_str[0] == 'a') {
-    ssat_readForall(s, in_str);
-  } else if (in_str[0] == 'r') {
-    ssat_readRandom(s, in_str);
-  } else if (in_str[0] == '-' || isdigit(in_str[0])) {
-    CLAUSE_NUM++;
-    ssat_readClause(s, in_str);
-  } else {
-    cout << "Error: Unexpected symbol" << endl;
-  }
-}
-
-void process(ssat_solver *s, gzFile in) {
-
-  char buf[BUFLEN];
-  char *offset = buf;
-
-  for (;;) {
-    int err, len = sizeof(buf) - (offset - buf);
-    if (len == 0)
-      error("Buffer to small for input line lengths");
-
-    len = gzread(in, offset, len);
-
-    if (len == 0)
-      break;
-    if (len < 0)
-      error(gzerror(in, &err));
-
-    char *cur = buf;
-    char *end = offset + len;
-
-    for (char *eol; (cur < end) && (eol = std::find(cur, end, '\n')) < end;
-         cur = eol + 1) {
-      string in_str = string(cur, eol);
-      ssat_lineHandle(s, in_str);
-    }
-
-    // any trailing data in [eol, end) now is a partial line
-    offset = std::copy(cur, end, buf);
-  }
-
-  // BIG CATCH: don't forget about trailing data without eol :)
-  std::cout << std::string(buf, offset);
-
-  if (gzclose(in) != Z_OK)
-    error("failed gzclose");
-}
 
 void ssat_Parser(ssat_solver *s, char *filename) {
   if (filename == NULL) {
     return;
   }
+  std::ifstream in(filename);
+  if (!in) {
+    printf("Cannot open file\n");
+    std::exit(-1);
+  }
+  try {
+    in >> formula;
+  } catch (hqspre::FileFormatException &e) {
+    printf("Error in file format\n");
+    in.close();
+    return;
+  }
+  in.close();
 
-  process(s, gzopen(filename, "rb"));
+  std::unordered_map<hqspre::Variable, int> varObjMap;
+  std::unordered_set<hqspre::Variable> definingVar;
+  const auto exist_vars = formula.numEVars();
+  const auto univ_vars = formula.numUVars();
+  auto literals = formula.numLiterals();
+  auto clauses = formula.numClauses();
+  printf("Number of exist variables: %zu\n", exist_vars);
+  printf("Number of univ variables: %zu\n", univ_vars);
+  printf("Number of literals: %zu\n", literals);
+  printf("Number of clauses: %zu\n", clauses);
+  formula.settings().preserve_gates = true;
+
+  formula.unitPropagation();
+  // formula.determineGates(true, false, false, false);
+  const std::vector<hqspre::Gate> gate_vec = formula.getGates();
+  clauses = formula.numClauses();
+  literals = formula.numLiterals();
+
+  for (const hqspre::Gate &g: gate_vec) {
+    const hqspre::Variable out_var = hqspre::lit2var(g._output_literal);
+    definingVar.insert(out_var);
+  }
+  Abc_Obj_t *pObj;
+  int i;
+  vector<Abc_Obj_t *> objVec;
+  i = 0;
+  const hqspre::QBFPrefix *_prefix = formula.getQBFPrefix();
+  size_t block_num = _prefix->getMaxLevel() + 1;
+  for (hqspre::Variable var = _prefix->minVarIndex();
+       var <= _prefix->maxVarIndex(); ++var) {
+    if (_prefix->varDeleted(var)) {
+      continue;
+    }
+    Abc_NtkCreatePi(s->pNtk);
+    varObjMap[var] = i;
+    i++;
+  }
+  printf("Number of Detected Gate: %zu\n", gate_vec.size());
+  Abc_NtkForEachPi(s->pNtk, pObj, i) { Abc_ObjSetCopy(pObj, pObj); }
+  // create gates
+  for (const hqspre::Gate &g : gate_vec) {
+    assert(g._type == hqspre::GateType::AND_GATE);
+    // objVec.push_back(ssat_createAnd(s, g));
+    ssat_createAndGate(s, g, varObjMap);
+  }
+
+  // read prefixes
+  for (int i = 0; i < block_num; ++i) {
+    std::set<hqspre::Variable> var_set = _prefix->getVarBlock(i);
+    hqspre::VariableStatus status = _prefix->getLevelQuantifier(i);
+    if (status == hqspre::VariableStatus::DELETED)
+      continue;
+    Vec_Int_t *pScope;
+    QuantifierType type = (QuantifierType)status;
+    if (Vec_IntSize(s->pQuanType) && Vec_IntEntryLast(s->pQuanType) == type) {
+      pScope = (Vec_Int_t *)Vec_PtrEntryLast(s->pQuan);
+    } else {
+      pScope = Vec_IntAlloc(0);
+      Vec_PtrPush(s->pQuan, pScope);
+      Vec_IntPush(s->pQuanType, type);
+    }
+
+    for (auto &v : var_set) {
+      if (type == Quantifier_Exist && definingVar.find(v) != definingVar.end()) continue;
+      Vec_IntPush(pScope, varObjMap[v]);
+    }
+  }
+
+  // create clauses
+
+  for (int i = 0; i < formula.maxClauseIndex() + 1; i++) {
+    if (formula.clauseDeleted(i))
+      continue;
+    vector<Abc_Obj_t *> clauseVec;
+    const hqspre::Clause c = formula.getClause(i);
+    for (auto &l : c) {
+      Abc_Obj_t *pPi = Abc_NtkPi(s->pNtk, varObjMap[hqspre::lit2var(l)])->pCopy;
+      clauseVec.push_back(Abc_ObjNotCond(pPi, hqspre::isNegative(l)));
+    }
+    objVec.push_back(ssat_createMultiOr(s->pNtk, clauseVec));
+  }
+  for (auto i: formula._unit_stack)
+  s->pPo = ssat_createMultiAnd(s->pNtk, objVec);
+  exit(1);
+
+  // ssat_ParseFile(s, gzopen(filename, "rb"));
   int entry, index;
   Vec_IntForEachEntry(s->pQuanType, entry, index) {
     PREFIX_NUM++;
     if (entry == Quantifier_Exist) {
       EXIST_NUM += Vec_IntSize((Vec_Int_t *)(Vec_PtrEntry(s->pQuan, index)));
     } else {
-      RANDOM_NUM += Vec_IntSize((Vec_Int_t *)(Vec_PtrEntry(s->pQuan, index)));
+      RANDOM_NUM += Vec_IntSize((Vec_Int_t *)(Vec_PtrEntry(s->pQuan,
+      index)));
     }
   }
   printf("\n");
@@ -307,7 +301,6 @@ void ssat_Parser(ssat_solver *s, char *filename) {
   printf("  > Number of Prefixes                = %d\n", PREFIX_NUM);
   printf("  > Number of Existitential Variables = %d\n", EXIST_NUM);
   printf("  > Number of Randomize Variables     = %d\n", RANDOM_NUM);
-  printf("  > Number of Clauses                 = %d\n", CLAUSE_NUM);
 
   return;
 }
