@@ -184,6 +184,7 @@ clk = Abc_Clock();
             Cnf_DataFree( pCnfOn );
             Cnf_DataFree( pCnfOff );
             sat_solver_delete( pSat );
+            printf("Two Networks is not UNSAT\n");
             return NULL;
         }
     }

@@ -318,10 +318,11 @@ int Abc_RealMain( int argc, char * argv[] )
         }
         // printf("%s\n", sInFile);
         // printf("%s\n", Extra_FileNameExtension(sInFile));
+        int fInFileIsGzip = sInFile ? strcmp(Extra_FileNameExtension(sInFile), "gz") : 1;
         int fInFileIsNotSdimacs = sInFile ? strcmp(Extra_FileNameExtension(sInFile), "sdimacs") : 1;
         // printf("%d\n", fInFileIsNotSdimacs);
         fStatus = 0;
-        if ( fInitRead && sInFile && fInFileIsNotSdimacs )
+        if ( fInitRead && sInFile && fInFileIsNotSdimacs && fInFileIsGzip)
         {
             sprintf( sCommandTmp, "%s %s", sReadCmd, sInFile );
             printf("%s\n", sCommandTmp);
@@ -331,7 +332,7 @@ int Abc_RealMain( int argc, char * argv[] )
 
         if ( fStatus == 0 )
         {
-            if (fInFileIsNotSdimacs == 0) {
+            if (fInFileIsNotSdimacs == 0 || fInFileIsGzip == 0) {
                 Vec_StrPop(sCommandUsr);
                 Vec_StrPush(sCommandUsr, ' ');
                 Vec_StrAppend(sCommandUsr, sInFile);
