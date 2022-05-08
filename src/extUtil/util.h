@@ -42,6 +42,7 @@ ABC_NAMESPACE_HEADER_START
 ///                    FUNCTION DECLARATIONS                         ///
 ////////////////////////////////////////////////////////////////////////
 
+#define val_assert_msg(x, y) assert((x) && (y))
 /*=== util.c ===========================================================*/
 // Ntk 
 extern Abc_Ntk_t * Util_CreatNtkFromTruthBin( char * pTruth );
