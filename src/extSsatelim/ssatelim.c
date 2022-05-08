@@ -28,16 +28,10 @@ ABC_NAMESPACE_IMPL_START
 ///                        DECLARATIONS                              ///
 ////////////////////////////////////////////////////////////////////////
 
-static const lbool l_Unsupp = -2;
 static ssat_solver *_solver;
 static void ssat_print_perf(ssat_solver *s);
 static fasttime_t t_start, t_end;
 
-static char *get_filename(char *filename) {
-  char *name = basename(filename);
-  char *ret = strtok(name, ".");
-  return ret;
-}
 
 void ssat_sighandler(int signal_number) {
   printf("\n");
@@ -143,7 +137,6 @@ ssat_solver *ssat_solver_new() {
   s->pNtk = Util_NtkAllocStrashWithName("ssat");
   Abc_NtkCreatePo(s->pNtk);
   Abc_ObjAssignName(Abc_NtkPo(s->pNtk, 0), "out", NULL);
-  s->pPo = Abc_AigConst1(s->pNtk);
   s->pQuan = Vec_PtrAlloc(0);
   s->pQuanType = Vec_IntAlloc(0);
   s->pUnQuan = Vec_IntAlloc(0);
@@ -207,30 +200,12 @@ static void ssat_quatification_check(ssat_solver *s) {
   }
 }
 
-void ssat_parser_finished_process(ssat_solver *s, char *filename) {
+void ssat_parser_finished_process(ssat_solver *s) {
   // Connect the output
-  if (Abc_ObjFaninNum(Abc_NtkPo(s->pNtk, 0)) == 0)
-    Abc_ObjAddFanin(Abc_NtkPo(s->pNtk, 0), s->pPo);
   s->pNtk = Util_NtkStrash(s->pNtk, 1);
-  Abc_NtkCheck(s->pNtk);
-  // try building BDD
-  ssat_synthesis(s);
-  // ssat_build_bdd(s);
   ssat_quatification_check(s);
-  // perform manthan on the original cnf if the network is small enough
-  // if (!s->haveBdd && Vec_IntEntryLast(s->pQuanType) == Quantifier_Exist) {
-  //   if (s->verbose) {
-  //     Abc_Print(1, "> exist on original cnf\n");
-  //   }
-  //   s->pPerf->current_type = Quantifier_Exist;
-  //   t_start = gettime();
-  //   ssat_solver_existouter(s, filename);
-  //   t_end = gettime();
-  //   s->pPerf->tExists += tdiff(t_start, t_end);
-  //   s->pPerf->nExpanded += 1;
-  //   Vec_IntPop(s->pQuanType);
-  //   Vec_PtrPop(s->pQuan);
-  // }
+  ssat_synthesis(s);
+  ssat_build_bdd(s);
 }
 
 /**
@@ -274,27 +249,14 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess, in
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
   _solver = ssat_solver_new();
-  char file[256], temp_file[256];
-  sprintf(file, "%s", filename);
   _solver->verbose = fVerbose;
   _solver->useReorder = fReorder;
   _solver->useProjected = fProjected;
-  _solver->pName = get_filename(filename);
-  sprintf(temp_file, "%s.sdimacs", _solver->pName);
-
-  if (fPreprocess) {
-    Util_CallProcess("./bin/hqspre", 0, _solver->verbose, "./hqspre", "--preserve_gates", "1",
-                      "-o", temp_file, file, NULL);
-    Util_CallProcess("python3", 0, _solver->verbose, "python3",
-                      "script/wmcrewriting2.py", temp_file, temp_file, NULL);
-  } else {
-    Util_CallProcess("python3", 0, _solver->verbose, "python3",
-                      "script/wmcrewriting2.py", file, temp_file, NULL);
-  }
+  _solver->usePreprocess = fPreprocess;
 
   // open file
-  ssat_Parser(_solver, temp_file);
-  ssat_parser_finished_process(_solver, temp_file);
+  ssat_Parser(_solver, filename);
+  ssat_parser_finished_process(_solver);
   ssat_check_const(_solver);
   ssat_solver_solve2(_solver);
 
@@ -304,7 +266,6 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess, in
   printf("  > Used BDD = %d\n", _solver->haveBdd);
   ssat_print_perf(_solver);
   // ssat_solver_delete(_solver);
-  remove(temp_file);
 }
 
 ABC_NAMESPACE_IMPL_END

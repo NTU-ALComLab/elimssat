@@ -36,6 +36,7 @@ enum QuantifierType
 };
 typedef enum QuantifierType QuantifierType;
 
+
 struct ssat_solver_t;
 typedef struct ssat_solver_t ssat_solver;
 struct ssat_solver_perf_t;
@@ -48,13 +49,10 @@ struct ssat_solver_t
   Abc_Ntk_t * pNtk;
   DdNode *bFunc;
   ssat_solver_perf * pPerf;
-  Abc_Obj_t * pPo;
   Vec_Ptr_t * pQuan;
   Vec_Int_t * pQuanType;
   Vec_Int_t * pUnQuan;
   Vec_Flt_t * pQuanWeight;
-  Vec_Int_t * varPiIndex;
-  Vec_Int_t * piVarIndex;
   char * pName;
   double result;
   int doSynthesis;
@@ -69,6 +67,7 @@ struct ssat_solver_t
   int successCadet;
   int useReorder;
   int useProjected;
+  int usePreprocess;
   int verbose;
 };
 
@@ -105,7 +104,7 @@ extern int ssatelim_init_function();
 extern void ssat_main(char * filename, int fReorder, int fProjected, int fPreprocess, int fVerbose);
 extern void ssat_solver_setnvars(ssat_solver* s,int n);
 extern void ssat_Parser(ssat_solver * s, char * filename);
-extern void ssat_parser_finished_process(ssat_solver* s, char * filename);
+extern void ssat_parser_finished_process(ssat_solver* s);
 extern int ssat_solver_solve2(ssat_solver* s);
 extern double ssat_result(ssat_solver* s);
 
@@ -126,8 +125,6 @@ extern void ssat_randomCompute(ssat_solver* s, Vec_Int_t *pRandom, int fExists);
 // ssatsynthesis.c
 extern void ssat_synthesis(ssat_solver *s);
 extern void ssat_build_bdd(ssat_solver *s);
-
-extern void ssat_write_wmc(Abc_Ntk_t* pNtk, char* name, Vec_Int_t* pRandom, Vec_Flt_t* pWeight);
 
 ABC_NAMESPACE_HEADER_END
 #endif
