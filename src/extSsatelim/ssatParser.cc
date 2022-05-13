@@ -20,7 +20,7 @@ ssatParser::ssatParser(ssat_solver *s) : _solver(s) {
   _clauseSet = Vec_PtrAlloc(0);
   _quanBlock = Vec_PtrAlloc(0);
   _quanType = Vec_IntAlloc(0);
-  _deletedVarSet.clear();
+  _definedVariables.clear();
 }
 
 ssatParser::~ssatParser() {
@@ -105,6 +105,7 @@ void ssatParser::parse(char *filename) {
     else if (*in == 'p') {
       if (eagerMatch(in, "p cnf")) {
         _nVar = parseInt(in);
+        ssat_solver_setnvars(_solver, _nVar);
         _nClause = parseInt(in);
       }
     } else if (*in == 'c') {
@@ -128,7 +129,7 @@ void ssatParser::buildQuantifier() {
     Vec_Int_t *vBlock = Vec_IntAlloc(0);
     int entry, i;
     Vec_IntForEachEntry(vVec, entry, i) {
-      if (_deletedVarSet.find(entry) != _deletedVarSet.end())
+      if (_definedVariables.find(entry) != _definedVariables.end())
         continue;
       // convert to PI index
       Vec_IntPush(vBlock, entry - 1);
@@ -141,7 +142,6 @@ void ssatParser::buildQuantifier() {
 }
 
 void ssatParser::buildNetwork() {
-  ssat_solver_setnvars(_solver, _nVar);
   Vec_Int_t *vVec;
   Vec_Ptr_t *vClause = Vec_PtrAlloc(0);
   Vec_Ptr_t *vPi = Vec_PtrAlloc(0);
@@ -152,7 +152,12 @@ void ssatParser::buildNetwork() {
     Vec_IntForEachEntry(vVec, lit, i) {
       // Pi index start from 0, so -1 on every entry
       int var = abs(lit);
-      Abc_Obj_t *pObj = Abc_NtkPi(_solver->pNtk, var - 1);
+      Abc_Obj_t* pObj;
+      if (_definedVariables.find(var) != _definedVariables.end()) {
+        pObj = _definedVariables.at(var);
+      } else {
+        pObj = Abc_NtkPi(_solver->pNtk, var - 1);
+      }
       Vec_PtrPush(vPi, Abc_ObjNotCond(pObj, signbit(lit)));
     }
     Vec_PtrPush(vClause, Util_NtkCreateMultiOr(_solver->pNtk, vPi));
@@ -184,7 +189,6 @@ void ssat_Parser(ssat_solver *s, char *filename) {
   ssatParser *p = new ssatParser(s);
   p->parse(temp_file);
   p->uniquePreprocess();
-  exit(1);
   p->buildQuantifier();
   p->buildNetwork();
   remove(temp_file);
