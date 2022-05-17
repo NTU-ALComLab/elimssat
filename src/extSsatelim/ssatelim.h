@@ -33,6 +33,7 @@ enum QuantifierType
   Quantifier_Exist  = 0,
   Quantifier_Random = 1,
   Quantifier_Forall = 2,
+  Quantifier_Unknown,
 };
 typedef enum QuantifierType QuantifierType;
 

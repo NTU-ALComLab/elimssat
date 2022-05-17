@@ -189,8 +189,8 @@ void ssat_Parser(ssat_solver *s, char *filename) {
   ssatParser *p = new ssatParser(s);
   p->parse(temp_file);
   p->uniquePreprocess();
-  p->buildQuantifier();
   p->buildNetwork();
+  p->buildQuantifier();
   remove(temp_file);
   delete (p);
 }

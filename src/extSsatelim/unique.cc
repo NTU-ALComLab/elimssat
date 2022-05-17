@@ -1,3 +1,5 @@
+#include "extUtil/easylogging++.h"
+#include "extUtil/utilVec.h"
 #include "ssatParser.h"
 #include <functional>
 #include <unordered_set>
@@ -20,27 +22,17 @@ static void printClause(int *pArray, int size) {
 }
 
 /**
- * @brief apply certain operation to every element of a given Vec_Int_t
- *
- * TODO move this function to extUtil
- */
-static void Vec_IntMap(Vec_Int_t *vVec, std::function<void(int)> func) {
-  int entry, index;
-  Vec_IntForEachEntry(vVec, entry, index) { func(entry); }
-}
-
-/**
  * @brief add clauses to the interpolation solver
  */
-void ssatParser::createSolver(Vec_Int_t *vConsider) {
-  _itpSolver = new avy::ItpMinisat(2, 1, false);
+avy::ItpMinisat* ssatParser::createItpSolver(Vec_Int_t *vConsider) {
+  avy::ItpMinisat *solver = new avy::ItpMinisat(2, 1, false);
   unordered_set<int> consider_set;
   Vec_Int_t *vVec;
   int index, entry;
   // create a hash table consist of considered variables
   auto consider_insert = [&consider_set](int v) { consider_set.insert(v); };
   Vec_IntMap(vConsider, consider_insert);
-  _itpSolver->reserve(2 * _nVar + 2 * Vec_IntSize(vConsider) + 1);
+  solver->reserve(2 * _nVar + 2 * Vec_IntSize(vConsider) + 1);
   Vec_Int_t *vClause = Vec_IntAlloc(0);
   // lambda function to convert the clause into minisat format
   auto convert_clause = [&vClause](int l) {
@@ -50,11 +42,9 @@ void ssatParser::createSolver(Vec_Int_t *vConsider) {
   };
   // insert clauses into solver
   Vec_PtrForEachEntry(Vec_Int_t *, _clauseSet, vVec, index) {
-    _itpSolver->markPartition(1);
+    solver->markPartition(1);
     Vec_IntMap(vVec, convert_clause);
-    int j;
-    Vec_IntForEachEntry(vClause, entry, j) {}
-    _itpSolver->addClause(vClause->pArray,
+    solver->addClause(vClause->pArray,
                           vClause->pArray + Vec_IntSize(vClause));
     Vec_IntClear(vClause);
   }
@@ -68,14 +58,15 @@ void ssatParser::createSolver(Vec_Int_t *vConsider) {
   };
   // insert clauses with considered varibles copied
   Vec_PtrForEachEntry(Vec_Int_t *, _clauseSet, vVec, index) {
-    _itpSolver->markPartition(2);
+    solver->markPartition(2);
     Vec_IntMap(vVec, convert_clause_copy);
     int j;
     Vec_IntForEachEntry(vClause, entry, j) {}
-    _itpSolver->addClause(vClause->pArray,
+    solver->addClause(vClause->pArray,
                           vClause->pArray + Vec_IntSize(vClause));
     Vec_IntClear(vClause);
   }
+  return solver;
 }
 
 Abc_Obj_t *ssatParser::buildDefinition(vector<int> &shared_vector,
@@ -97,10 +88,11 @@ Abc_Obj_t *ssatParser::buildDefinition(vector<int> &shared_vector,
                                (Abc_Obj_t *)Aig_ObjChild1Copy(pObj));
     }
   }
-  Vec_PtrFree( vNodes );
+  Vec_PtrFree(vNodes);
   pObj = Aig_ManCo(pAig, 0);
   Abc_Obj_t *pRet = (Abc_Obj_t *)Aig_ObjChild0Copy(pObj);
-  assert(Abc_ObjRegular(pRet)->pNtk->pManFunc == (Abc_Aig_t *)_solver->pNtk->pManFunc);
+  assert(Abc_ObjRegular(pRet)->pNtk->pManFunc ==
+         (Abc_Aig_t *)_solver->pNtk->pManFunc);
   return pRet;
 }
 
@@ -121,6 +113,7 @@ void ssatParser::uniquePreprocess() {
   if (Vec_IntEntryLast(_quanType) != Quantifier_Exist)
     return;
 
+  VLOG(1) << "perform interpolation-based semantic gate extraction";
   vector<int> shared_vector;
   unordered_set<int> consider_set;
   Vec_Int_t *vVec, *vConsider;
@@ -133,7 +126,7 @@ void ssatParser::uniquePreprocess() {
       break;
     Vec_IntMap(vVec, shared_push);
   }
-  createSolver(vConsider);
+  avy::ItpMinisat* solver = createItpSolver(vConsider);
 
   // solving
   Vec_IntForEachEntry(vConsider, entry, index) {
@@ -141,17 +134,17 @@ void ssatParser::uniquePreprocess() {
     int select_var = _nVar * 2 + 2 * index + 1;
     pClause[0] = toLitCond(select_var, true);
     pClause[1] = toLit(entry);
-    _itpSolver->markPartition(1);
-    _itpSolver->addClause(pClause, pClause + 2);
+    solver->markPartition(1);
+    solver->addClause(pClause, pClause + 2);
     pClause[0] = toLitCond(select_var + 1, true);
     pClause[1] = toLitCond(_nVar + entry, true);
-    _itpSolver->markPartition(2);
-    _itpSolver->addClause(pClause, pClause + 2);
+    solver->markPartition(2);
+    solver->addClause(pClause, pClause + 2);
     vector<int> assumptions = {toLit(select_var), toLit(select_var + 1)};
-    boost::tribool result = _itpSolver->solve(assumptions, CONFLICT_LIMIT);
+    boost::tribool result = solver->solve(assumptions, CONFLICT_LIMIT);
     if (!result) {
       Aig_Man_t *pAig =
-          _itpSolver->getInterpolant(shared_vector, shared_vector.size());
+          solver->getInterpolant(shared_vector, shared_vector.size());
       _definedVariables[entry] = buildDefinition(shared_vector, pAig);
     }
   }

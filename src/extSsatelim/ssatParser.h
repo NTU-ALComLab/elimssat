@@ -22,6 +22,7 @@ public:
   ssatParser(ssat_solver *s);
   ~ssatParser();
   void parse(char *filename);
+  void unatePreprocess();
   void uniquePreprocess();
   void buildQuantifier();
   void buildNetwork();
@@ -31,9 +32,12 @@ private:
   void parseExist(Minisat::StreamBuffer &in);
   void parseClause(Minisat::StreamBuffer &in);
 
+  // unate.cc
+  sat_solver* createUnateSolver(Vec_Int_t *vConsider);
+
   // unique.cc
   Abc_Obj_t* buildDefinition(vector<int>& , Aig_Man_t*);
-  void createSolver(Vec_Int_t *vConsider);
+  avy::ItpMinisat* createItpSolver(Vec_Int_t *vConsider);
 
   int _nVar;
   int _nClause;
@@ -42,7 +46,6 @@ private:
   Vec_Ptr_t *_clauseSet;
   Vec_Ptr_t *_quanBlock;
   Vec_Int_t *_quanType;
-  avy::ItpMinisat *_itpSolver;
   ssat_solver *_solver;
 };
 

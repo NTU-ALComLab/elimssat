@@ -15,12 +15,16 @@
 
 #include "ssatelim.h"
 #include "base/io/ioAbc.h"
+#include "bdd/cudd/cudd.h"
 #include "extUtil/util.h"
 #include "misc/vec/vecFlt.h"
-#include "bdd/cudd/cudd.h"
 #include <libgen.h>
 #include <signal.h>
 #include <zlib.h>
+
+#include "easylogging++.h"
+
+INITIALIZE_EASYLOGGINGPP
 
 ABC_NAMESPACE_IMPL_START
 
@@ -31,7 +35,6 @@ ABC_NAMESPACE_IMPL_START
 static ssat_solver *_solver;
 static void ssat_print_perf(ssat_solver *s);
 static fasttime_t t_start, t_end;
-
 
 void ssat_sighandler(int signal_number) {
   printf("\n");
@@ -142,7 +145,7 @@ ssat_solver *ssat_solver_new() {
   s->pUnQuan = Vec_IntAlloc(0);
   s->pQuanWeight = Vec_FltAlloc(0);
   s->pPerf = ABC_ALLOC(ssat_solver_perf, 1);
-  s->pPerf->current_type = -1;
+  s->pPerf->current_type = Quantifier_Unknown;
   s->pPerf->nExpanded = 0;
   s->pPerf->tExists = 0;
   s->pPerf->tRandom = 0;
@@ -211,7 +214,6 @@ void ssat_parser_finished_process(ssat_solver *s) {
 /**
  * @brief The main routine of SSAT solving with quantifier elimination
  *
- * @param s ssat solver struct
  * @return the satisfying probability
  */
 int ssat_solver_solve2(ssat_solver *s) {
@@ -219,17 +221,15 @@ int ssat_solver_solve2(ssat_solver *s) {
   int fExists = false;
   // perform quantifier elimination
   for (int i = Vec_IntSize(s->pQuanType) - 1; i >= 0; i--) {
-    QuantifierType type = Vec_IntEntry(s->pQuanType, i);
+    QuantifierType type = (QuantifierType)Vec_IntEntry(s->pQuanType, i);
     if (i == 0 && type == Quantifier_Exist && !s->haveBdd && s->useProjected) {
       fExists = true; // turn on sat solving on the outermost exists
       break;
     }
     Vec_Int_t *pScope = (Vec_Int_t *)Vec_PtrEntry(s->pQuan, i);
-    if (s->verbose) {
-      Abc_Print(1, "> level %d, quantifier type %s, %d element\n", i,
-                type == Quantifier_Exist ? "Exist" : "Random",
-                Vec_IntSize(pScope));
-    }
+    VLOG(1) << "level " << i << ", quantifier type "
+            << (type == Quantifier_Exist ? "Exist" : "Random") << ", "
+            << Vec_IntSize(pScope) << " element";
     if (type == Quantifier_Exist) {
       ssat_solve_exist(s, pScope);
     } else {
@@ -244,10 +244,21 @@ int ssat_solver_solve2(ssat_solver *s) {
   return s->result;
 }
 
-void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess, int fVerbose) {
+void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess,
+               int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
+  // setup easylogging
+  el::Configurations defaultConf;
+  defaultConf.setToDefault();
+  el::Loggers::setVerboseLevel(1);
+  defaultConf.set(el::Level::Info, el::ConfigurationType::Format,
+                  "[%level] %msg");
+  defaultConf.setGlobally(el::ConfigurationType::Format, "[%level] %msg");
+  defaultConf.set(el::Level::Verbose, el::ConfigurationType::Format,
+                  "[%level-%vlevel] %msg");
+  el::Loggers::reconfigureAllLoggers(defaultConf);
   _solver = ssat_solver_new();
   _solver->verbose = fVerbose;
   _solver->useReorder = fReorder;
@@ -260,9 +271,9 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess, in
   ssat_check_const(_solver);
   ssat_solver_solve2(_solver);
 
-  Abc_Print(1, "\n");
-  Abc_Print(1, "==== Solving Result ====\n");
-  Abc_Print(1, "  > Result = %lf\n", _solver->result);
+  printf("\n");
+  printf("==== Solving Result ====\n");
+  printf("  > Result = %lf\n", _solver->result);
   printf("  > Used BDD = %d\n", _solver->haveBdd);
   ssat_print_perf(_solver);
   // ssat_solver_delete(_solver);
