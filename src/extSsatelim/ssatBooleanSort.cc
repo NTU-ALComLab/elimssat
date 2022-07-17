@@ -16,7 +16,7 @@
 #include "ssatBooleanSort.h"
 #include "extUtil/util.h"
 #include "bdd/extrab/extraBdd.h" // 
-#include "ext-Synthesis/synthesis.h"
+#include "extSynthesis/synthesis.h"
 #include <vector>
 #include <algorithm>
 

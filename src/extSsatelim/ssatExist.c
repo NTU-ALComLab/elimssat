@@ -1,5 +1,5 @@
-#include "ext-Synthesis/synthesis.h"
-#include "ext-Synthesis/synthesisUtil.h"
+#include "extSynthesis/synthesis.h"
+#include "extSynthesis/synthesisUtil.h"
 #include "extUtil/util.h"
 #include "ssatelim.h"
 
