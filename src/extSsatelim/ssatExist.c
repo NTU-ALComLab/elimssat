@@ -8,34 +8,6 @@ extern Abc_Ntk_t *Abc_NtkDC2(Abc_Ntk_t *pNtk, int fBalance, int fUpdateLevel,
 // extUtil/util.c
 extern DdNode *ExistQuantify(DdManager *dd, DdNode *bFunc, Vec_Int_t *pPiIndex);
 
-static Abc_Ntk_t *
-existence_eliminate_scope_bdd(Abc_Ntk_t *pNtk, Vec_Int_t *pScope, int verbose) {
-  Abc_Print(1, "existence_eliminate_scope_bdd\n");
-  Abc_Ntk_t *pNtkNew = Util_NtkExistQuantifyPis_BDD(pNtk, pScope);
-  Abc_Print(1, "Abc_NtkIsBddLogic(pNtk): %d\n", Abc_NtkIsBddLogic(pNtk));
-  return pNtkNew;
-}
-
-static Abc_Ntk_t *
-existence_eliminate_scope_aig(Abc_Ntk_t *pNtk, Vec_Int_t *pScope, int verbose) {
-  assert(Abc_NtkIsStrash(pNtk));
-  Abc_Ntk_t *pNtkNew = Util_NtkExistQuantifyPis(pNtk, pScope);
-  return pNtkNew;
-}
-
-static Abc_Ntk_t *existence_eliminate_scope(Abc_Ntk_t *pNtk, Vec_Int_t *pScope,
-                                            int verbose) {
-  if (Abc_NtkIsBddLogic(pNtk))
-    return existence_eliminate_scope_bdd(pNtk, pScope, verbose);
-  if (Abc_NtkIsStrash(pNtk))
-    return existence_eliminate_scope_aig(pNtk, pScope, verbose);
-
-  pNtk = Abc_NtkStrash(pNtk, 0, 0, 0);
-  Abc_Ntk_t *pNtkNew = existence_eliminate_scope_aig(pNtk, pScope, verbose);
-  Abc_NtkDelete(pNtk);
-  return pNtkNew;
-}
-
 static void ssat_collect_existouter(ssat_solver *s, char *filename, char *qdimacs_file, Vec_Int_t *vExists, Vec_Int_t *vForalls) {
   FILE *in = fopen(filename, "r");
   FILE *out = fopen(qdimacs_file, "w");
@@ -137,6 +109,11 @@ static void ssat_finish_existouter(ssat_solver *s, Abc_Ntk_t *pNtkNew, char* aig
 }
 
 void ssat_solver_existelim(ssat_solver *s, Vec_Int_t *pScope) {
+  if (!s->haveBdd) {
+    s->pNtk = unatePreprocess(s->pNtk, &pScope);
+    ssat_synthesis(s);
+    ssat_build_bdd(s);
+  }
   if (s->haveBdd) {
     ++s->useBdd;
     s->bFunc = ExistQuantify(s->dd, s->bFunc, pScope);

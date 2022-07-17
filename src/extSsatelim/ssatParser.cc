@@ -1,4 +1,5 @@
 #include "ssatParser.h"
+#include "extUtil/easylogging++.h"
 #include "misc/vec/vecPtr.h"
 #include <algorithm>
 #include <fstream>
@@ -118,6 +119,7 @@ void ssatParser::parse(char *filename) {
       parseClause(in);
     }
   }
+  VLOG(1) << "number of variables: " << _nVar;
   val_assert_msg(Vec_PtrSize(_clauseSet) == _nClause,
                  "number of clause is not the same as the header");
 }
@@ -137,6 +139,8 @@ void ssatParser::buildQuantifier() {
     if (Vec_IntSize(vBlock) != 0) {
       Vec_PtrPush(_solver->pQuan, vBlock);
       Vec_IntPush(_solver->pQuanType, Vec_IntEntry(_quanType, index));
+    } else {
+      Vec_IntFree(vBlock);
     }
   }
 }
@@ -188,9 +192,12 @@ void ssat_Parser(ssat_solver *s, char *filename) {
                     "script/wmcrewriting2.py", filename, temp_file, NULL));
   ssatParser *p = new ssatParser(s);
   p->parse(temp_file);
-  p->uniquePreprocess();
+  if (s->useGateDetect) {
+    p->uniquePreprocess();
+  }
   p->buildNetwork();
   p->buildQuantifier();
+  // p->unatePreprocess();
   remove(temp_file);
   delete (p);
 }

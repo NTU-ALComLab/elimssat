@@ -22,7 +22,7 @@
 #include <signal.h>
 #include <zlib.h>
 
-#include "easylogging++.h"
+#include "extUtil/easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
 
@@ -245,14 +245,16 @@ int ssat_solver_solve2(ssat_solver *s) {
 }
 
 void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess,
-               int fVerbose) {
+               int fGatedetect, int fVerbose) {
   signal(SIGINT, ssat_sighandler);
   signal(SIGTERM, ssat_sighandler);
   signal(SIGSEGV, ssat_sighandler);
   // setup easylogging
   el::Configurations defaultConf;
   defaultConf.setToDefault();
-  el::Loggers::setVerboseLevel(1);
+  if (fVerbose) {
+    el::Loggers::setVerboseLevel(1);
+  }
   defaultConf.set(el::Level::Info, el::ConfigurationType::Format,
                   "[%level] %msg");
   defaultConf.setGlobally(el::ConfigurationType::Format, "[%level] %msg");
@@ -264,6 +266,7 @@ void ssat_main(char *filename, int fReorder, int fProjected, int fPreprocess,
   _solver->useReorder = fReorder;
   _solver->useProjected = fProjected;
   _solver->usePreprocess = fPreprocess;
+  _solver->useGateDetect = fGatedetect;
 
   // open file
   ssat_Parser(_solver, filename);

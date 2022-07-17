@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <iostream>
 
-#define MAX_AIG_NODE 50000
+#define MAX_AIG_NODE 80000
 
 //#define _DEBUG
 using namespace std;
@@ -179,19 +179,18 @@ Abc_Ntk_t *rel2FuncInt2(Abc_Ntk_t *pNtk, vector<char *> &vNameY,
     pNtkFunc = singleRel2FuncInt2(pNtkRel, vNameY[i], vNameY);
     // cout << "end solve\n" << endl;
     Abc_Ntk_t *pNtkFuncTemp = singleRel2Func(pNtkRel, vNameY[i]);
+    if (pNtkFunc != NULL) pNtkFunc = Util_NtkDFraig(pNtkFunc, 1, 1);
     if (pNtkFunc == NULL) {
       type = 1;
       pNtkFunc = pNtkFuncTemp;
-    }
-    // else {
-    else if (Abc_NtkObjNum(pNtkFuncTemp) > Abc_NtkObjNum(pNtkFunc)) {
+    } else if (Abc_NtkObjNum(pNtkFuncTemp) > Abc_NtkObjNum(pNtkFunc)) {
       // pNtkFunc = resyn(pNtkFunc);
       Abc_NtkDelete(pNtkFuncTemp);
     } else {
       if (fVerbose)
         cout << "Substitution is better than Interpolant" << endl;
       Abc_NtkDelete(pNtkFunc);
-      pNtkFunc = pNtkFuncTemp;
+      pNtkFunc = Util_NtkDFraig(pNtkFuncTemp, 1, 1);
       type = 1;
     }
     /* if(pNtkFunc == NULL) {
@@ -205,9 +204,6 @@ Abc_Ntk_t *rel2FuncInt2(Abc_Ntk_t *pNtk, vector<char *> &vNameY,
       Abc_NtkDelete(pNtkRel);
       return NULL;
     }
-    pNtkFunc = Util_NtkDFraig(pNtkFunc, 1, 1);
-    pNtkFunc = Util_NtkDc2(pNtkFunc, 1);
-    pNtkFunc = Util_NtkResyn2rs(pNtkFunc, 1);
     pNtkRel = replaceX(pNtkRel, pNtkFunc, vNameY[i]);
     pNtkRel = Util_NtkDc2(pNtkRel, 1);
     // pNtkRel = Util_NtkResyn2rs(pNtkRel, 1);

@@ -1,5 +1,6 @@
 #include "extUtil/easylogging++.h"
 #include "extUtil/utilVec.h"
+#include "proof/fra/fra.h"
 #include "ssatParser.h"
 #include <functional>
 #include <unordered_set>
@@ -16,23 +17,75 @@ static const int CONFLICT_LIMIT = 1000;
  */
 static void printClause(int *pArray, int size) {
   for (int i = 0; i < size; i++) {
+    // printf("%d ", pArray[i]);
     printf("%s%d ", lit_sign(pArray[i]) ? "-" : "", lit_var(pArray[i]));
   }
   printf("\n");
 }
 
 /**
+ * @brief perform basic synthesis on the extracted definition circuits
+ *
+ * @return the Aig manager after synthesis
+ */
+static Aig_Man_t *synthesisDefinition(Aig_Man_t *pAig) {
+  if (Aig_ManNodeNum(pAig) < 100) {
+    return pAig;
+  }
+  VLOG(1) << "size of definition before compress: " << Aig_ManNodeNum(pAig);
+  Aig_Man_t *pAigNew = Dar_ManCompress2(pAig, 1, 0, 1, 0, 0);
+  Aig_ManStop(pAig);
+  VLOG(1) << "size of definition after compress: " << Aig_ManNodeNum(pAigNew);
+  if (Aig_ManNodeNum(pAigNew) > 500) {
+    Fra_Par_t pars, *p_pars = &pars;
+    Fra_ParamsDefault(p_pars);
+    pAig = pAigNew;
+    pAigNew = Fra_FraigPerform(pAig, p_pars);
+    Aig_ManStop(pAig);
+    VLOG(1) << "Size after fraiging: " << Aig_ManNodeNum(pAigNew);
+  }
+  return pAigNew;
+}
+
+void ssatParser::collectVariable(vector<int> &consider_vector,
+                                 vector<int> &shared_vector,
+                                 unordered_set<int> &exist_map) {
+  int index;
+  Vec_Int_t *vVec;
+  auto shared_push = [&shared_vector](int v) { shared_vector.push_back(v); };
+  auto consider_push = [&consider_vector](int v) {
+    consider_vector.push_back(v);
+  };
+  auto map_insert = [&exist_map](int v) { exist_map.insert(v); };
+  vVec = (Vec_Int_t *)Vec_PtrEntry(_quanBlock, 0);
+  Vec_PtrForEachEntry(Vec_Int_t *, _quanBlock, vVec, index) {
+    int type = Vec_IntEntry(_quanType, index);
+    if (index == 0)
+      Vec_IntMap(vVec, shared_push);
+    else if (index == 1 && type == Quantifier_Random)
+      Vec_IntMap(vVec, shared_push);
+    else {
+      Vec_IntMap(vVec, consider_push);
+    }
+    if (type == Quantifier_Exist) {
+      Vec_IntMap(vVec, map_insert);
+    }
+  }
+}
+
+/**
  * @brief add clauses to the interpolation solver
  */
-avy::ItpMinisat* ssatParser::createItpSolver(Vec_Int_t *vConsider) {
+avy::ItpMinisat *ssatParser::createItpSolver(vector<int> &consider_vector) {
   avy::ItpMinisat *solver = new avy::ItpMinisat(2, 1, false);
   unordered_set<int> consider_set;
   Vec_Int_t *vVec;
-  int index, entry;
+  int index;
   // create a hash table consist of considered variables
-  auto consider_insert = [&consider_set](int v) { consider_set.insert(v); };
-  Vec_IntMap(vConsider, consider_insert);
-  solver->reserve(2 * _nVar + 2 * Vec_IntSize(vConsider) + 1);
+  for (auto &i : consider_vector) {
+    consider_set.insert(i);
+  }
+  solver->reserve(2 * _nVar + 2 * consider_vector.size() + 1);
   Vec_Int_t *vClause = Vec_IntAlloc(0);
   // lambda function to convert the clause into minisat format
   auto convert_clause = [&vClause](int l) {
@@ -44,8 +97,12 @@ avy::ItpMinisat* ssatParser::createItpSolver(Vec_Int_t *vConsider) {
   Vec_PtrForEachEntry(Vec_Int_t *, _clauseSet, vVec, index) {
     solver->markPartition(1);
     Vec_IntMap(vVec, convert_clause);
-    solver->addClause(vClause->pArray,
-                          vClause->pArray + Vec_IntSize(vClause));
+    if (Vec_IntSize(vClause) == 1) {
+      solver->addUnit(vClause->pArray[0]);
+    } else {
+      solver->addClause(vClause->pArray,
+                        vClause->pArray + Vec_IntSize(vClause));
+    }
     Vec_IntClear(vClause);
   }
   // lambda function to copy variables and convert the clause to minisat format
@@ -60,10 +117,12 @@ avy::ItpMinisat* ssatParser::createItpSolver(Vec_Int_t *vConsider) {
   Vec_PtrForEachEntry(Vec_Int_t *, _clauseSet, vVec, index) {
     solver->markPartition(2);
     Vec_IntMap(vVec, convert_clause_copy);
-    int j;
-    Vec_IntForEachEntry(vClause, entry, j) {}
-    solver->addClause(vClause->pArray,
-                          vClause->pArray + Vec_IntSize(vClause));
+    if (Vec_IntSize(vClause) == 1) {
+      solver->addUnit(vClause->pArray[0]);
+    } else {
+      solver->addClause(vClause->pArray,
+                        vClause->pArray + Vec_IntSize(vClause));
+    }
     Vec_IntClear(vClause);
   }
   return solver;
@@ -73,11 +132,17 @@ Abc_Obj_t *ssatParser::buildDefinition(vector<int> &shared_vector,
                                        Aig_Man_t *pAig) {
   int index;
   Aig_Obj_t *pObj;
+  pAig = synthesisDefinition(pAig);
   Vec_Ptr_t *vNodes;
   vNodes = Aig_ManDfs(pAig, 1);
   Aig_ManConst1(pAig)->pData = Abc_AigConst1(_solver->pNtk);
   Aig_ManForEachCi(pAig, pObj, index) {
-    pObj->pData = Abc_NtkPi(_solver->pNtk, shared_vector[index] - 1);
+    int var = shared_vector[index];
+    if (_definedVariables.find(var) != _definedVariables.end()) {
+      pObj->pData = _definedVariables.at(var);
+    } else {
+      pObj->pData = Abc_NtkPi(_solver->pNtk, shared_vector[index] - 1);
+    }
   }
   Vec_PtrForEachEntry(Aig_Obj_t *, vNodes, pObj, index) {
     if (Aig_ObjIsBuf(pObj)) {
@@ -109,45 +174,57 @@ void ssatParser::uniquePreprocess() {
   val_assert_msg(Vec_IntSize(_quanType) != 0 && Vec_PtrSize(_quanBlock) != 0,
                  "no quantifier to be processed!");
   val_assert_msg(Vec_PtrSize(_clauseSet) != 0, "no clause to be processed!");
-  // TODO add general support
   if (Vec_IntEntryLast(_quanType) != Quantifier_Exist)
     return;
 
   VLOG(1) << "perform interpolation-based semantic gate extraction";
   vector<int> shared_vector;
-  unordered_set<int> consider_set;
-  Vec_Int_t *vVec, *vConsider;
-  int entry, index;
-  vConsider = (Vec_Int_t *)Vec_PtrEntryLast(_quanBlock);
-  // collect shared variables
-  auto shared_push = [&shared_vector](int v) { shared_vector.push_back(v); };
-  Vec_PtrForEachEntry(Vec_Int_t *, _quanBlock, vVec, index) {
-    if (index == Vec_PtrSize(_quanBlock) - 1)
-      break;
-    Vec_IntMap(vVec, shared_push);
-  }
-  avy::ItpMinisat* solver = createItpSolver(vConsider);
+  vector<int> consider_vector;
+  unordered_set<int> exist_map;
+  collectVariable(consider_vector, shared_vector, exist_map);
+  VLOG(1) << "size of shared_vector: " << shared_vector.size();
+  VLOG(1) << "size of considered_vector: " << consider_vector.size();
+  avy::ItpMinisat *solver = createItpSolver(consider_vector);
 
   // solving
-  Vec_IntForEachEntry(vConsider, entry, index) {
+  vector<int> select_vars;
+  int select_var = _nVar * 2 + 1;
+  for (int index = 0; index < consider_vector.size(); index++) {
+    int entry = consider_vector[index];
+    // VLOG(1) << index + 1 << "/" << consider_vector.size() << ": " << entry << " size of shared_vector: " << shared_vector.size();
     int pClause[2];
-    int select_var = _nVar * 2 + 2 * index + 1;
-    pClause[0] = toLitCond(select_var, true);
-    pClause[1] = toLit(entry);
-    solver->markPartition(1);
-    solver->addClause(pClause, pClause + 2);
-    pClause[0] = toLitCond(select_var + 1, true);
-    pClause[1] = toLitCond(_nVar + entry, true);
-    solver->markPartition(2);
-    solver->addClause(pClause, pClause + 2);
-    vector<int> assumptions = {toLit(select_var), toLit(select_var + 1)};
-    boost::tribool result = solver->solve(assumptions, CONFLICT_LIMIT);
-    if (!result) {
-      Aig_Man_t *pAig =
-          solver->getInterpolant(shared_vector, shared_vector.size());
-      _definedVariables[entry] = buildDefinition(shared_vector, pAig);
+    if (exist_map.find(entry) != exist_map.end()) {
+      pClause[0] = toLitCond(select_var, true);
+      pClause[1] = toLit(entry);
+      solver->markPartition(1);
+      solver->addClause(pClause, pClause + 2);
+      pClause[0] = toLitCond(select_var + 1, true);
+      pClause[1] = toLitCond(_nVar + entry, true);
+      solver->markPartition(2);
+      solver->addClause(pClause, pClause + 2);
+      vector<int> assumptions = {toLit(select_var), toLit(select_var + 1)};
+      // for (int &v : select_vars) {
+      //   assumptions.push_back(toLitCond(v, true));
+      // }
+      select_vars.push_back(select_var);
+      select_vars.push_back(select_var + 1);
+      select_var += 2;
+      boost::tribool result = solver->solve(assumptions, CONFLICT_LIMIT);
+      if (!result) {
+        Aig_Man_t *pAig =
+            solver->getInterpolant(shared_vector, shared_vector.size());
+        _definedVariables[entry] = buildDefinition(shared_vector, pAig);
+      }
     }
+    pClause[0] = toLit(entry);
+    pClause[1] = toLitCond(entry + _nVar, true);
+    solver->addClause(pClause, pClause + 2);
+    pClause[0] = toLit(entry + _nVar);
+    pClause[1] = toLitCond(entry, true);
+    solver->addClause(pClause, pClause + 2);
+    shared_vector.push_back(entry);
   }
+  VLOG(1) << "found " << _definedVariables.size() << " definitions";
 }
 
 ABC_NAMESPACE_IMPL_END
