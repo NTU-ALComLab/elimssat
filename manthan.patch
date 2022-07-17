@@ -1,0 +1,1355 @@
+diff --git a/src/callUnique.py b/src/callUnique.py
+index 532352f..9afab57 100644
+--- a/src/callUnique.py
++++ b/src/callUnique.py
+@@ -27,80 +27,79 @@ import networkx as nx
+ 
+ def unique_function(qdimacs_list, Xvar, Yvar, dg, Unates):
+ 
+-	offset = 5*(len(Yvar)+len(Xvar))+100
+-	UniqueChecker = DefinabilityChecker(qdimacs_list,Yvar)
+-	UniqueVars = []
+-	UniqueDef = ''
+-	declare_wire = ''
+-
+-
+-
+-	itr = 0
+-
+-	for yvar in Yvar:
+-
+-		if yvar in Unates:
+-			itr += 1
+-			continue
+-
+-		definingYvar = Yvar[:itr]
+-		itr += 1
+-		countoffset = 0
+-
+-		defination = UniqueChecker.checkDefinability( Xvar + definingYvar, int(yvar), offset)
+-		if defination[0] == True:
+-			UniqueVars.append(yvar)
+-
+-			for lists in defination[1]:
+-				clause = lists[0]
+-				clauseString = ''
+-
+-				if isinstance(clause,list):
+-					for defvar in clause:
+-						if int(defvar) < 0:
+-							clauseString += "~"
+-						if abs(defvar) in Yvar:
+-							if int(yvar) not in list(dg.nodes):
+-								dg.add_node(int(yvar))
+-							if abs(int(defvar)) not in list(dg.nodes):
+-								dg.add_node(abs(int(defvar)))
+-							dg.add_edge(yvar,abs(int(defvar)))
+-							clauseString += "w%s &" %(abs(defvar))
+-							
+-						elif abs(defvar) in Xvar:
+-							clauseString += "i%s & " %(abs(defvar))
+-							
+-						else:
+-							clauseString += "utemp%s &  " %(abs(defvar))
+-							
+-					if len(defination[1]) > 1:
+-						if int(lists[1]) not in Yvar:
+-							countoffset += 1
+-							declare_wire += "wire utemp%s;\n" %(lists[1])
+-							UniqueDef += "assign utemp%s = %s;\n" %(lists[1],clauseString.strip("& "))
+-						else:
+-							UniqueDef += "assign w%s = %s;\n" %(yvar, clauseString.strip("& "))
+-					else:
+-						countoffset += 1
+-						defvar = clause[0]
+-						clauseString = ''
+-						if int(defvar) < 0:
+-							clauseString += "~"
+-						if abs(defvar) in Xvar:
+-							clauseString += "i%s;\n" %(abs(defvar))
+-						elif abs(defvar) in Yvar:
+-							clauseString += "w%s;\n" %(abs(defvar))
+-						else:
+-							print("check unique defination")
+-							exit()
+-
+-						UniqueDef += "assign w%s = %s" %(yvar, clauseString)
+-				else:
+-					print(yvar,clause)
+-					if clause > 0:
+-						UniqueDef += "assign w%s = 1'b1;\n" %(abs(clause))
+-					else:
+-						UniqueDef += "assign w%s = 1'b0;\n" %(abs(clause))
+-					countoffset += 1
+-		offset += countoffset + 100
+-	return UniqueVars, declare_wire+UniqueDef
+\ No newline at end of file
++    offset = 5*(len(Yvar)+len(Xvar))+100
++    UniqueChecker = DefinabilityChecker(qdimacs_list,Yvar)
++    UniqueVars = []
++    UniqueDef = ''
++    declare_wire = ''
++
++
++
++    itr = 0
++
++    for yvar in Yvar:
++
++        if yvar in Unates:
++            itr += 1
++            continue
++
++        definingYvar = Yvar[:itr]
++        itr += 1
++        countoffset = 0
++
++        defination = UniqueChecker.checkDefinability( Xvar + definingYvar, int(yvar), offset)
++        if defination[0] == True:
++            UniqueVars.append(yvar)
++
++            for lists in defination[1]:
++                clause = lists[0]
++                clauseString = ''
++
++                if isinstance(clause,list):
++                    for defvar in clause:
++                        if int(defvar) < 0:
++                            clauseString += "~"
++                        if abs(defvar) in Yvar:
++                            if int(yvar) not in list(dg.nodes):
++                                dg.add_node(int(yvar))
++                            if abs(int(defvar)) not in list(dg.nodes):
++                                dg.add_node(abs(int(defvar)))
++                            dg.add_edge(yvar,abs(int(defvar)))
++                            clauseString += "w%s &" %(abs(defvar))
++                            
++                        elif abs(defvar) in Xvar:
++                            clauseString += "i%s & " %(abs(defvar))
++                            
++                        else:
++                            clauseString += "utemp%s &  " %(abs(defvar))
++                            
++                    if len(defination[1]) > 1:
++                        if int(lists[1]) not in Yvar:
++                            countoffset += 1
++                            declare_wire += "wire utemp%s;\n" %(lists[1])
++                            UniqueDef += "assign utemp%s = %s;\n" %(lists[1],clauseString.strip("& "))
++                        else:
++                            UniqueDef += "assign w%s = %s;\n" %(yvar, clauseString.strip("& "))
++                    else:
++                        countoffset += 1
++                        defvar = clause[0]
++                        clauseString = ''
++                        if int(defvar) < 0:
++                            clauseString += "~"
++                        if abs(defvar) in Xvar:
++                            clauseString += "i%s;\n" %(abs(defvar))
++                        elif abs(defvar) in Yvar:
++                            clauseString += "w%s;\n" %(abs(defvar))
++                        else:
++                            print("check unique defination")
++                            exit()
++
++                        UniqueDef += "assign w%s = %s" %(yvar, clauseString)
++                else:
++                    if clause > 0:
++                        UniqueDef += "assign w%s = 1'b1;\n" %(abs(clause))
++                    else:
++                        UniqueDef += "assign w%s = 1'b0;\n" %(abs(clause))
++                    countoffset += 1
++        offset += countoffset + 100
++    return UniqueVars, declare_wire+UniqueDef
+diff --git a/src/convert_verilog.py b/src/convert_verilog.py
+index d705325..b320645 100644
+--- a/src/convert_verilog.py
++++ b/src/convert_verilog.py
+@@ -27,102 +27,104 @@ import networkx as nx
+ 
+ 
+ def convert_verilog(input,cluster,dg):
+-	ng = nx.Graph() # used only if args.multiclass
+-
+-	with open(input, 'r') as f:
+-		lines = f.readlines()
+-	f.close()
+-	itr = 1
+-	declare = 'module FORMULA( '
+-	declare_input = ''
+-	declare_wire = ''
+-	assign_wire = ''
+-	tmp_array = []
+-
+-	for line in lines:
+-		line = line.strip(" ")
+-		if (line == "") or (line == "\n"):
+-			continue
+-		if line.startswith("c "):
+-			continue
+-
+-		if line.startswith("p "):
+-			continue
+-
+-
+-		if line.startswith("a"):
+-			a_variables = line.strip("a").strip("\n").strip(" ").split(" ")[:-1]
+-			for avar in a_variables:
+-				declare += "%s," %(avar)
+-				declare_input += "input %s;\n" %(avar)
+-			continue
+-
+-		if line.startswith("e"):
+-			e_variables = line.strip("e").strip("\n").strip(" ").split(" ")[:-1]
+-			for evar in e_variables:
+-				tmp_array.append(int(evar))
+-				declare += "%s," %(evar)
+-				declare_input += "input %s;\n" %(evar)
+-				if int(evar) not in list(dg.nodes):
+-					dg.add_node(int(evar))
+-			continue
+-
+-		declare_wire += "wire t_%s;\n" %(itr)
+-		assign_wire += "assign t_%s = " %(itr)
+-		itr += 1
+-
+-		clause_variable = line.strip(" \n").split(" ")[:-1]
+-		for var in clause_variable:
+-			if int(var) < 0:
+-				assign_wire += "~%s | " %(abs(int(var)))
+-			else:
+-				assign_wire += "%s | " %(abs(int(var)))
+-
+-		assign_wire = assign_wire.strip("| ")+";\n"
+-		
+-		### if args.multiclass, then add an edge between variables of the clause ###
+-
+-		if cluster:
+-			for literal1 in clause_variable:
+-				literal1 = abs(int(literal1))
+-				if literal1 in tmp_array:
+-					if literal1 not in list(ng.nodes):
+-						ng.add_node(literal1)
+-					for literal2 in clause_variable:
+-						literal2 = abs(int(literal2))
+-						if (literal1 != abs(literal2)) and (literal2 in tmp_array):
+-							if literal2 not in list(ng.nodes):
+-								ng.add_node(literal2)
+-							if not ng.has_edge(literal1, literal2):
+-								ng.add_edge(literal1,literal2)
+-
+-
+-
+-	count_tempvariable = itr
+-
+-	declare += "out);\n"
+-	declare_input += "output out;\n"
+-
+-	temp_assign = ''
+-	outstr = ''
+-
+-	itr = 1
+-	while itr < count_tempvariable:
+-		temp_assign += "t_%s & " %(itr)
+-		if itr % 100 == 0:
+-			declare_wire += "wire tcount_%s;\n" %(itr)
+-			assign_wire += "assign tcount_%s = %s;\n" %(itr,temp_assign.strip("& "))
+-			outstr += "tcount_%s & " %(itr)
+-			temp_assign = ''
+-		itr += 1
+-
+-	if temp_assign != "":
+-		declare_wire += "wire tcount_%s;\n" %(itr)
+-		assign_wire += "assign tcount_%s = %s;\n" %(itr,temp_assign.strip("& "))
+-		outstr += "tcount_%s;\n" %(itr)
+-	outstr = "assign out = %s" %(outstr)
+-
+-
+-	verilogformula = declare + declare_input + declare_wire + assign_wire + outstr +"endmodule\n"
+-
+-	return verilogformula, dg, ng
+\ No newline at end of file
++    ng = nx.Graph() # used only if args.multiclass
++
++    with open(input, 'r') as f:
++        lines = f.readlines()
++    f.close()
++    itr = 1
++    declare = 'module FORMULA( '
++    declare_input = ''
++    declare_wire = ''
++    assign_wire = ''
++    tmp_array = []
++
++    for line in lines:
++        line = line.strip(" ")
++        if (line == "") or (line == "\n"):
++            continue
++        if line.startswith("c "):
++            continue
++
++        if line.startswith("p "):
++            continue
++
++
++        if line.startswith("a"):
++            a_variables = line.strip("a").strip("\n").strip(" ").split()[:-1]
++            for avar in a_variables:
++                declare += "%s," %(avar)
++                declare_input += "input %s;\n" %(avar)
++            continue
++
++        if line.startswith("e"):
++            e_variables = line.strip("e").strip("\n").strip(" ").split()[:-1]
++            for evar in e_variables:
++                tmp_array.append(int(evar))
++                declare += "%s," %(evar)
++                declare_input += "input %s;\n" %(evar)
++                if int(evar) not in list(dg.nodes):
++                    dg.add_node(int(evar))
++            continue
++
++        declare_wire += "wire t_%s;\n" %(itr)
++        assign_wire += "assign t_%s = " %(itr)
++        itr += 1
++
++        clause_variable = line.strip(" \n").split()[:-1]
++        for var in clause_variable:
++            if int(var) < 0:
++                assign_wire += "~%s | " %(abs(int(var)))
++            else:
++                assign_wire += "%s | " %(abs(int(var)))
++
++        assign_wire = assign_wire.strip("| ")+";\n"
++        
++        ### if args.multiclass, then add an edge between variables of the clause ###
++
++        if cluster:
++            for literal1 in clause_variable:
++                literal1 = abs(int(literal1))
++                if literal1 in tmp_array:
++                    if literal1 not in list(ng.nodes):
++                        ng.add_node(literal1)
++                    for literal2 in clause_variable:
++                        literal2 = abs(int(literal2))
++                        if (literal1 != abs(literal2)) and (literal2 in tmp_array):
++                            if literal2 not in list(ng.nodes):
++                                ng.add_node(literal2)
++                            if not ng.has_edge(literal1, literal2):
++                                ng.add_edge(literal1,literal2)
++
++
++
++    count_tempvariable = itr
++
++    declare += "out);\n"
++    declare_input += "output out;\n"
++
++    temp_assign = ''
++    outstr = ''
++
++    itr = 1
++    while itr < count_tempvariable:
++        temp_assign += "t_%s & " %(itr)
++        if itr % 100 == 0:
++            declare_wire += "wire tcount_%s;\n" %(itr)
++            assign_wire += "assign tcount_%s = %s;\n" %(itr,temp_assign.strip("& "))
++            outstr += "tcount_%s & " %(itr)
++            temp_assign = ''
++        itr += 1
++
++    if temp_assign != "":
++        declare_wire += "wire tcount_%s;\n" %(itr)
++        assign_wire += "assign tcount_%s = %s;\n" %(itr,temp_assign.strip("& "))
++        outstr += "tcount_%s;\n" %(itr)
++    else:
++        outstr += "1'b1;\n"
++    outstr = "assign out = %s" %(outstr)
++
++
++    verilogformula = declare + declare_input + declare_wire + assign_wire + outstr +"endmodule\n"
++
++    return verilogformula, dg, ng
+diff --git a/src/createSkolem.py b/src/createSkolem.py
+index 983f52f..b4d842c 100644
+--- a/src/createSkolem.py
++++ b/src/createSkolem.py
+@@ -27,248 +27,253 @@ import os
+ import numpy as np
+ 
+ def skolemfunction_preprocess(Xvar,Yvar,PosUnate,NegUnate, UniqueVar, UniqueDef, inputfile_name):
+-	declare = 'module SkolemFormula ('
+-	declarevar = ''
+-	assign = ''
+-	wire = ''
++    declare = 'module SkolemFormula ('
++    declarevar = ''
++    assign = ''
++    wire = ''
+ 
+-	for var in Xvar:
+-		declare += "i%s, " %(var)
+-		declarevar += "input i%s;\n" %(var)
++    for var in Xvar:
++        declare += "i%s, " %(var)
++        declarevar += "input i%s;\n" %(var)
+ 
+-	for var in Yvar:
+-		declare += "o%s, " %(var)
+-		declarevar += "output o%s;\n" %(var)
+-		if var in PosUnate:
+-			assign = "o%s = 1'b1;\n" %(var)
+-		if var in NegUnate:
+-			assign += "assign o%s = 1'b0;\n" %(var)
+-		if var in UniqueVar:
+-			assign += "assign o%s = w%s;\n" %(var,var)
+-			wire += "wire w%s;\n" %(var)
++    for var in Yvar:
++        declare += "o%s, " %(var)
++        declarevar += "output o%s;\n" %(var)
++        if var in PosUnate:
++            assign += "assign o%s = 1'b1;\n" %(var)
++        if var in NegUnate:
++            assign += "assign o%s = 1'b0;\n" %(var)
++        if var in UniqueVar:
++            assign += "assign o%s = w%s;\n" %(var,var)
++            wire += "wire w%s;\n" %(var)
+ 
+-	declare = declare.strip(", ")+");\n"
+-	skolemformula = declare + declarevar + wire + UniqueDef + assign + "endmodule\n"
++    declare = declare.strip(", ")+");\n"
++    skolemformula = declare + declarevar + wire + UniqueDef + assign + "endmodule\n"
+ 
+-	skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
++    skolemfile = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
+ 
+-	with open(skolemformula,"w") as f:
+-		f.write(skolemformula)
+-	f.close()
+-	cmd = "./dependencies/file_write_aig %s %s   > /dev/null 2>&1 " % (skolemformula, skolemformula.split("_skolem.v")[0]+"_skolem.aig")
+-	os.system(cmd)
+-	os.system("cp %s %s" %(skolemformula.split("_skolem.v")[0]+"_skolem.aig", inputfile_name + "_skolem.aig"))
++    with open(skolemfile,"w") as f:
++        f.write(skolemformula)
++    f.close()
++    cmd = "./dependencies/file_write_aig %s %s   > /dev/null 2>&1 " % (skolemfile, skolemfile.split("_skolem.v")[0]+"_skolem.aig")
++    os.system(cmd)
++    aigfile = skolemfile.split("_skolem.v")[0]+"_skolem.aig"
++    if not os.path.isfile(aigfile):
++        print("error on converting verilog to aig!")
++        exit(1)
++    os.system("cp %s %s" %(skolemfile.split("_skolem.v")[0]+"_skolem.aig", inputfile_name + "_skolem.aig"))
+ 
+ def createSkolemfunction(inputfile_name, Xvar,Yvar):
+-	skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
+-	
+-	content = ''
+-	declare = "module SkolemFormula ("
+-	declare_input = ""
+-	assign = ""
+-	for var in Xvar:
+-		declare += "i%s, " %(var)
+-		declare_input += "input i%s;\n" %(var)
+-	for var in Yvar:
+-		declare += "o%s, " %(var)
+-		declare_input += "output o%s;\n" %(var)
+-		assign += "assign o%s = w%s;\n" %(var,var)
+-	declare = declare.strip(", ")+");\n"
++    skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
++    
++    content = ''
++    declare = "module SkolemFormula ("
++    declare_input = ""
++    assign = ""
++    for var in Xvar:
++        declare += "i%s, " %(var)
++        declare_input += "input i%s;\n" %(var)
++    for var in Yvar:
++        declare += "o%s, " %(var)
++        declare_input += "output o%s;\n" %(var)
++        assign += "assign o%s = w%s;\n" %(var,var)
++    declare = declare.strip(", ")+");\n"
+ 
+-	with open(skolemformula,"r") as f:
+-		lines = f.readlines()
+-	f.close()
++    with open(skolemformula,"r") as f:
++        lines = f.readlines()
++    f.close()
+ 
+-	for line in lines:
+-		if line.startswith("module"):
+-			continue
+-		if line.startswith("input"):
+-			continue
+-		if line.startswith("output"):
+-			continue
+-		if line.startswith("assign out"):
+-			continue
+-		if line.startswith("endmodule"):
+-			continue
+-		if line.startswith("assign beta"):
+-			var = int(line.strip("assign beta").split("_")[0])
+-			line = line.replace('& ~o%s' %(var),"")
+-			line = line.replace('& o%s' %(var), "")
+-			line = line.replace("o","w")
+-		content += line
+-	with open(skolemformula,"w") as f:
+-		f.write(declare + declare_input + content + assign + "endmodule\n")
+-	f.close()
++    for line in lines:
++        if line.startswith("module"):
++            continue
++        if line.startswith("input"):
++            continue
++        if line.startswith("output"):
++            continue
++        if line.startswith("assign out"):
++            continue
++        if line.startswith("endmodule"):
++            continue
++        if line.startswith("assign beta"):
++            var = int(line.strip("assign beta").split("_")[0])
++            line = line.replace('& ~o%s ' %(var)," ")
++            line = line.replace('& o%s ' %(var), " ")
++            line = line.replace("o","w")
++        content += line
++    with open(skolemformula,"w") as f:
++        f.write(declare + declare_input + content + assign + "endmodule\n")
++    f.close()
+ 
+-	cmd = "./dependencies/file_write_aig %s %s  > /dev/null 2>&1  " % (skolemformula, skolemformula.split("_skolem.v")[0]+"_skolem.aig")
+-	os.system(cmd)
+-	os.system("cp %s %s" %(skolemformula.split("_skolem.v")[0]+"_skolem.aig", inputfile_name + "_skolem.aig"))
+-	os.unlink(skolemformula)
+-	os.unlink("strash.txt")
++    cmd = "./dependencies/file_write_aig %s %s  > /dev/null 2>&1  " % (skolemformula, skolemformula.split("_skolem.v")[0]+"_skolem.aig")
++    os.system(cmd)
++    os.system("cp %s %s" %(skolemformula.split("_skolem.v")[0]+"_skolem.aig", inputfile_name + "_skolem.aig"))
++    # os.unlink(skolemformula)
++    # os.unlink("strash.txt")
+ 
+ 
+ 
+ 
+ def createErrorFormula(Xvar, Yvar, UniqueVars, verilog_formula):
+-	inputformula = '('
+-	inputskolem = '('
+-	inputerrorx = 'module MAIN ('
+-	inputerrory = ''
+-	inputerroryp = ''
+-	declarex = ''
+-	declarey = ''
+-	declareyp = ''
+-	for var in Xvar:
+-		inputformula += "%s, " % (var)
+-		inputskolem += "%s, " % (var)
+-		inputerrorx += "%s, " % (var)
+-		declarex += "input %s ;\n" % (var)
+-	for var in Yvar:
+-		inputformula += "%s, " % (var)
+-		inputerrory += "%s, " % (var)
+-		declarey += "input %s ;\n" % (var) 
+-		inputerroryp += "ip%s, " % (var)
+-		declareyp += "input ip%s ;\n" % (var)
+-		if var in UniqueVars:
+-			inputskolem += "%s, " %(var)
+-		else:
+-			inputskolem += "ip%s, " %(var)
+-	inputformula += "out1 );\n"
+-	inputformula_sk = inputskolem + "out3 );\n"
+-	inputskolem += "out2 );\n"
+-	inputerrorx = inputerrorx + inputerrory + inputerroryp + "out );\n"
+-	declare = declarex + declarey + declareyp + 'output out;\n' + \
+-		"wire out1;\n" + "wire out2;\n" + "wire out3;\n"
+-	formula_call = "FORMULA F1 " + inputformula
+-	skolem_call = "SKOLEMFORMULA F2 " + inputskolem
+-	formulask_call = "FORMULA F2 " + inputformula_sk
+-	error_content = inputerrorx + declare + \
+-		formula_call + skolem_call + formulask_call
+-	error_content += "assign out = ( out1 & out2 & ~(out3) );\n" + \
+-		"endmodule\n"
+-	error_content += verilog_formula
+-	return error_content
++    inputformula = '('
++    inputskolem = '('
++    inputerrorx = 'module MAIN ('
++    inputerrory = ''
++    inputerroryp = ''
++    declarex = ''
++    declarey = ''
++    declareyp = ''
++    for var in Xvar:
++        inputformula += "%s, " % (var)
++        inputskolem += "%s, " % (var)
++        inputerrorx += "%s, " % (var)
++        declarex += "input %s ;\n" % (var)
++    for var in Yvar:
++        inputformula += "%s, " % (var)
++        inputerrory += "%s, " % (var)
++        declarey += "input %s ;\n" % (var) 
++        inputerroryp += "ip%s, " % (var)
++        declareyp += "input ip%s ;\n" % (var)
++        inputskolem += "ip%s, " %(var)
++        # if var in UniqueVars:
++        #     inputskolem += "%s, " %(var)
++        # else:
++        #     inputskolem += "ip%s, " %(var)
++    inputformula += "out1 );\n"
++    inputformula_sk = inputskolem + "out3 );\n"
++    inputskolem += "out2 );\n"
++    inputerrorx = inputerrorx + inputerrory + inputerroryp + "out );\n"
++    declare = declarex + declarey + declareyp + 'output out;\n' + \
++        "wire out1;\n" + "wire out2;\n" + "wire out3;\n"
++    formula_call = "FORMULA F1 " + inputformula
++    skolem_call = "SKOLEMFORMULA F2 " + inputskolem
++    formulask_call = "FORMULA F2 " + inputformula_sk
++    error_content = inputerrorx + declare + \
++        formula_call + skolem_call + formulask_call
++    error_content += "assign out = ( out1 & out2 & ~(out3) );\n" + \
++        "endmodule\n"
++    error_content += verilog_formula
++    return error_content
+ 
+ 
+ def addSkolem(error_content,inputfile_name):
+-	skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
+-	with open(skolemformula, 'r') as f:
+-		skolemcontent = f.read()
+-	f.close()
+-	errorformula = tempfile.gettempdir() + '/' + inputfile_name + "_errorformula.v"
+-	f = open(errorformula, "w")
+-	f.write(error_content)
+-	f.write(skolemcontent)
+-	f.close()
++    skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"
++    with open(skolemformula, 'r') as f:
++        skolemcontent = f.read()
++    f.close()
++    errorformula = tempfile.gettempdir() + '/' + inputfile_name + "_errorformula.v"
++    f = open(errorformula, "w")
++    f.write(error_content)
++    f.write(skolemcontent)
++    f.close()
+ 
+ def createSkolem(candidateSkf, Xvar, Yvar, UniqueVars, UniqueDef, inputfile_name):
+-	tempOutputFile = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"  # F(X,Y')
+-	inputstr = 'module SKOLEMFORMULA ('
+-	declarestr = ''
+-	assignstr = ''
+-	wirestr = 'wire zero;\nwire one;\n'
+-	wirestr += "assign zero = 0;\nassign one = 1;\n"
+-	outstr = ''
+-	itr = 1
+-	wtlist = []
+-	
+-	for var in Xvar:
+-		declarestr += "input i%s;\n" % (var)
+-		inputstr += "i%s, " % (var)
+-	for var in Yvar:
+-		flag = 0
+-		declarestr += "input o%s;\n" % (var)
+-		inputstr += "o%s, " % (var)
+-		wirestr += "wire w%s;\n" % (var)
+-		if var not in UniqueVars:
+-			assignstr += 'assign w%s = (' % (var)
+-			assignstr += candidateSkf[var].replace(" 1 ", " one ").replace(" 0 ", " zero ") +");\n"
+-		
+-		outstr += "(~(w%s ^ o%s)) & " % (var,var)
+-		if itr % 10 == 0:
+-			flag = 1
+-			outstr = outstr.strip("& ")
+-			wirestr += "wire wt%s;\n" % (itr)
+-			assignstr += "assign wt%s = %s;\n" % (itr, outstr)
+-			wtlist.append(itr)
+-			outstr = ''
+-		itr += 1
+-	if(flag == 0):
+-		outstr = outstr.strip("& ")
+-		wirestr += "wire wt%s;\n" % (itr)
+-		assignstr += "assign wt%s = %s;\n" % (itr, outstr)
+-		wtlist.append(itr)
+-	assignstr += "assign out = "
+-	for i in wtlist:
+-		assignstr += "wt%s & " % (i)
+-	assignstr = assignstr.strip("& ") + ";\n"
+-	inputstr += " out );\n"
+-	declarestr += "output out ;\n"
+-	f = open(tempOutputFile, "w")
+-	f.write(inputstr + declarestr + wirestr)
+-	f.write(UniqueDef.strip("\n")+"\n")
+-	f.write(assignstr + "endmodule")
+-	f.close()
++    tempOutputFile = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"  # F(X,Y')
++    inputstr = 'module SKOLEMFORMULA ('
++    declarestr = ''
++    assignstr = ''
++    wirestr = 'wire zero;\nwire one;\n'
++    wirestr += "assign zero = 1'b0;\nassign one = 1'b1;\n"
++    outstr = ''
++    itr = 1
++    wtlist = []
++    
++    for var in Xvar:
++        declarestr += "input i%s;\n" % (var)
++        inputstr += "i%s, " % (var)
++    for var in Yvar:
++        flag = 0
++        declarestr += "input o%s;\n" % (var)
++        inputstr += "o%s, " % (var)
++        wirestr += "wire w%s;\n" % (var)
++        if var not in UniqueVars:
++            assignstr += 'assign w%s = (' % (var)
++            assignstr += candidateSkf[var].replace(" 1 ", " one ").replace(" 0 ", " zero ") +");\n"
++        
++        outstr += "(~(w%s ^ o%s)) & " % (var,var)
++        if itr % 10 == 0:
++            flag = 1
++            outstr = outstr.strip("& ")
++            wirestr += "wire wt%s;\n" % (itr)
++            assignstr += "assign wt%s = %s;\n" % (itr, outstr)
++            wtlist.append(itr)
++            outstr = ''
++        itr += 1
++    if(flag == 0):
++        outstr = outstr.strip("& ")
++        wirestr += "wire wt%s;\n" % (itr)
++        assignstr += "assign wt%s = %s;\n" % (itr, outstr)
++        wtlist.append(itr)
++    assignstr += "assign out = "
++    for i in wtlist:
++        assignstr += "wt%s & " % (i)
++    assignstr = assignstr.strip("& ") + ";\n"
++    inputstr += " out );\n"
++    declarestr += "output out ;\n"
++    f = open(tempOutputFile, "w")
++    f.write(inputstr + declarestr + wirestr)
++    f.write(UniqueDef.strip("\n")+"\n")
++    f.write(assignstr + "endmodule")
++    f.close()
+ 
+ 
+ def simply(inputfile_name):
+-	skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"  # F(X,Y')
++    skolemformula = tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v"  # F(X,Y')
+ 
+-	with open(skolemformula,"r") as f:
+-		lines = f.readlines()
+-	f.close()
++    with open(skolemformula,"r") as f:
++        lines = f.readlines()
++    f.close()
+ 
+-	content = ''
++    content = ''
+ 
+-	for line in lines:
+-		if line.startswith("assign beta"):
+-			var = int(line.strip("assign beta").split("_")[0])
+-			line.replace('& ~o%s' %(var),"")
+-			line.replace('& o%s' %(var), "")
+-			line.replace("o","w")
+-		content += line
+-	
+-	with open(skolemformula,"w") as f:
+-		f.write(content)
+-	f.close()
+-	
++    for line in lines:
++        if line.startswith("assign beta"):
++            var = int(line.strip("assign beta").split("_")[0])
++            line.replace('& ~o%s' %(var),"")
++            line.replace('& o%s' %(var), "")
++            line.replace("o","w")
++        content += line
++    
++    with open(skolemformula,"w") as f:
++        f.write(content)
++    f.close()
++    
+ 
+ 
+ 
+ def verify(Xvar, Yvar, inputfile_name):
+-	errorformula = tempfile.gettempdir() + '/' + inputfile_name + "_errorformula.v"
+-	cexfile = tempfile.gettempdir() + '/' + inputfile_name + "_cex.txt"
+-	exists = os.path.isfile("strash.txt")
+-	if exists:
+-		os.system("rm strash.txt")
+-	cmd = "./dependencies/file_generation_cex %s %s  > /dev/null 2>&1" % (errorformula, cexfile)
+-	os.system(cmd)
+-	exists = os.path.isfile("strash.txt")
+-	if exists:
+-		os.system("rm strash.txt")
+-		exists_cex = os.path.isfile(cexfile)
+-		if exists_cex:
+-			cexmodels = []
+-			ret = 1
+-			with open(cexfile, 'r') as f:
+-				lines = f.readlines()
+-			f.close()
+-			os.unlink(cexfile)
+-			for line in lines:
+-				model = line.strip(" \n")
+-			cex = list(map(int, model))
+-			templist = np.split(cex, [len(Xvar), len(Xvar) + len(Yvar)])
+-			modelx = templist[0]
+-			modely = templist[1]
+-			modelyp = templist[2]
+-			assert(len(modelx) == len(Xvar))
+-			assert(len(modelyp) == len(Yvar))
+-			assert(len(modely) == len(Yvar))
+-			cexmodels.append(modelx)
+-			cexmodels.append(modely)
+-			cexmodels.append(modelyp)
+-			return(1, cexmodels, ret)
+-		else:
+-			return(1, [], 0)
+-	else:
+-		return(0, [0], 1)
+\ No newline at end of file
++    errorformula = tempfile.gettempdir() + '/' + inputfile_name + "_errorformula.v"
++    cexfile = tempfile.gettempdir() + '/' + inputfile_name + "_cex.txt"
++    exists = os.path.isfile("strash.txt")
++    if exists:
++        os.system("rm strash.txt")
++    cmd = "./dependencies/file_generation_cex %s %s  > /dev/null 2>&1" % (errorformula, cexfile)
++    os.system(cmd)
++    exists = os.path.isfile("strash.txt")
++    if exists:
++        os.system("rm strash.txt")
++        exists_cex = os.path.isfile(cexfile)
++        if exists_cex:
++            cexmodels = []
++            ret = 1
++            with open(cexfile, 'r') as f:
++                lines = f.readlines()
++            f.close()
++            os.unlink(cexfile)
++            for line in lines:
++                model = line.strip(" \n")
++            cex = list(map(int, model))
++            templist = np.split(cex, [len(Xvar), len(Xvar) + len(Yvar)])
++            modelx = templist[0]
++            modely = templist[1]
++            modelyp = templist[2]
++            assert(len(modelx) == len(Xvar))
++            assert(len(modelyp) == len(Yvar))
++            assert(len(modely) == len(Yvar))
++            cexmodels.append(modelx)
++            cexmodels.append(modely)
++            cexmodels.append(modelyp)
++            return(1, cexmodels, ret)
++        else:
++            return(1, [], 0)
++    else:
++        return(0, [0], 1)
+diff --git a/src/preprocess.py b/src/preprocess.py
+index f2604ff..1ded6f9 100644
+--- a/src/preprocess.py
++++ b/src/preprocess.py
+@@ -32,94 +32,93 @@ import os
+ import numpy as np
+ 
+ def parse(inputfile):
+-	with open(inputfile) as f:
+-		lines = f.readlines()
+-	f.close()
+-
+-	Xvar = []
+-	Yvar = []
+-
+-	qdimacs_list = []
+-	for line in lines:
+-		if line.startswith("c"):
+-			continue
+-		if (line == "") or (line == "\n"):
+-			continue
+-		if line.startswith("p"):
+-			continue
+-		if line.startswith("a"):
+-			Xvar += line.strip("a").strip("\n").strip(" ").split(" ")[:-1]
+-			continue
+-		if line.startswith("e"):
+-			Yvar += line.strip("e").strip("\n").strip(" ").split(" ")[:-1]
+-			continue
+-		clause = line.strip(" ").strip("\n").strip(" ").split(" ")[:-1]
+-
+-		if len(clause) > 0:
+-			clause = list(map(int, list(clause)))
+-			qdimacs_list.append(clause)
+-
+-	if (len(Xvar) == 0) or (len(Yvar) == 0) or (len(qdimacs_list) == 0):
+-		print("problem with the files, can not synthesis Skolem functions")
+-	
+-	
+-	Xvar = list(map(int, list(Xvar)))
+-	Yvar = list(map(int, list(Yvar)))
+-
+-	return Xvar, Yvar, qdimacs_list
++    with open(inputfile) as f:
++        lines = f.readlines()
++    f.close()
++
++    Xvar = []
++    Yvar = []
++
++    qdimacs_list = []
++    for line in lines:
++        if line.startswith("c"):
++            continue
++        if (line == "") or (line == "\n"):
++            continue
++        if line.startswith("p"):
++            continue
++        if line.startswith("a"):
++            Xvar += line.strip("a").strip("\n").strip(" ").split()[:-1]
++            continue
++        if line.startswith("e"):
++            Yvar += line.strip("e").strip("\n").strip(" ").split()[:-1]
++            continue
++        clause = line.strip(" ").strip("\n").strip(" ").split()[:-1]
++        if len(clause) > 0:
++            clause = list(map(int, list(clause)))
++            qdimacs_list.append(clause)
++
++    if (len(Xvar) == 0) or (len(Yvar) == 0) or (len(qdimacs_list) == 0):
++        print("problem with the files, can not synthesis Skolem functions")
++    
++    
++    Xvar = list(map(int, list(Xvar)))
++    Yvar = list(map(int, list(Yvar)))
++
++    return Xvar, Yvar, qdimacs_list
+ 
+ 
+ def convertcnf(inputfile, cnffile_name):
+-	with open(inputfile,"r") as f:
+-		cnfcontent = f.read()
+-	f.close()
++    with open(inputfile,"r") as f:
++        cnfcontent = f.read()
++    f.close()
+ 
+-	cnfcontent = cnfcontent.replace("a ", "c ret ")
+-	cnfcontent = cnfcontent.replace("e ", "c ind ")
++    cnfcontent = cnfcontent.replace("a ", "c ret ")
++    cnfcontent = cnfcontent.replace("e ", "c ind ")
+ 
+-	with open(cnffile_name,"w") as f:
+-		f.write(cnfcontent)
+-	f.close()
+-	return cnfcontent
++    with open(cnffile_name,"w") as f:
++        f.write(cnfcontent)
++    f.close()
++    return cnfcontent
+ 
+ 
+ def preprocess(cnffile_name):
+ 
+-	cmd = "./dependencies/preprocess %s " % (cnffile_name)
+-	with Popen(cmd, shell=True, stdout=PIPE, preexec_fn=os.setsid) as process:
+-		try:
+-			output = process.communicate(timeout=500)[0]
+-		except Exception:
+-			os.killpg(process.pid, signal.SIGINT)
+-			PosUnate = []
+-			NegUnate = []
+-			print("timeout preprocessing..")
+-			return PosUnate, NegUnate
+-		else:
+-			PosUnate = []
+-			NegUnate = []
+-			exists = os.path.isfile(cnffile_name + "_vardetails")
+-			if exists:
+-				with open(cnffile_name + "_vardetails", 'r') as f:
+-					lines = f.readlines()
+-				f.close()
+-
+-				for line in lines:
+-					if "Posunate" in line:
+-						pos = line.split(":")[1].strip(" \n")
+-						if pos != "":
+-							PosUnate = list(map(int, list(pos.split(" "))))
+-						continue
+-					if "Negunate" in line:
+-						neg = line.split(":")[1].strip(" \n")
+-						if neg != "":
+-							NegUnate = list(map(int, list(neg.split(" "))))
+-						continue
+-				os.unlink(cnffile_name + "_vardetails")
+-			else:
+-				print("preprocessing error .. contining ")
+-				exit()
+-			return PosUnate, NegUnate
++    cmd = "./dependencies/preprocess %s " % (cnffile_name)
++    with Popen(cmd, shell=True, stdout=PIPE, preexec_fn=os.setsid) as process:
++        try:
++            output = process.communicate(timeout=500)[0]
++        except Exception:
++            os.killpg(process.pid, signal.SIGINT)
++            PosUnate = []
++            NegUnate = []
++            print("timeout preprocessing..")
++            return PosUnate, NegUnate
++        else:
++            PosUnate = []
++            NegUnate = []
++            exists = os.path.isfile(cnffile_name + "_vardetails")
++            if exists:
++                with open(cnffile_name + "_vardetails", 'r') as f:
++                    lines = f.readlines()
++                f.close()
++
++                for line in lines:
++                    if "Posunate" in line:
++                        pos = line.split(":")[1].strip(" \n")
++                        if pos != "":
++                            PosUnate = list(map(int, list(pos.split(" "))))
++                        continue
++                    if "Negunate" in line:
++                        neg = line.split(":")[1].strip(" \n")
++                        if neg != "":
++                            NegUnate = list(map(int, list(neg.split(" "))))
++                        continue
++                os.unlink(cnffile_name + "_vardetails")
++            else:
++                print("preprocessing error .. contining ")
++                exit()
++            return PosUnate, NegUnate
+ 
+ 
+ 
+diff --git a/src/repair.py b/src/repair.py
+index 5810426..182c796 100644
+--- a/src/repair.py
++++ b/src/repair.py
+@@ -29,7 +29,7 @@ from dependencies.rc2 import RC2Stratified
+ from pysat.formula import WCNF
+ 
+ 
+-def maxsatContent(cnfcontent,n, u):
++def maxsatContent(cnfcontent, n, u):
+     lines = cnfcontent.split("\n")
+     maxsatCnf = ''
+     for line in lines:
+@@ -53,8 +53,6 @@ def maxsatContent(cnfcontent,n, u):
+     return maxsatWt, maxsatCnf, cnfcontent
+ 
+ 
+-
+-
+ def addXvaluation(cnfcontent, maxsatWt, maxsatcnf, modelx, Xvar):
+     maxsatstr = ''
+     cnfstr = ''
+@@ -71,8 +69,9 @@ def addXvaluation(cnfcontent, maxsatWt, maxsatcnf, modelx, Xvar):
+     maxsatcnf += "\n" + maxsatstr
+     return cnfcontent, maxsatcnf
+ 
++
+ def callRC2(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder):
+-    wcnf = WCNF(from_string = maxsatcnf)
++    wcnf = WCNF(from_string=maxsatcnf)
+     wt_softclause = 0
+     for i in range(len(Yvar)):
+         yvar = Yvar[i]
+@@ -83,12 +82,12 @@ def callRC2(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder):
+         weight = len(Yvar) - yindex
+ 
+         if modelyp[i] == 0:
+-            wcnf.append([-1*yvar], weight = weight)
++            wcnf.append([-1*yvar], weight=weight)
+         else:
+-            wcnf.append([yvar], weight = weight)
+-        
++            wcnf.append([yvar], weight=weight)
++
+         wt_softclause += 1
+-    
++
+     wcnf.topw = wt_softclause
+ 
+     rc2 = RC2Stratified(wcnf)
+@@ -101,7 +100,7 @@ def callRC2(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder):
+                 indlist.append(abs(var))
+             if (int(var) > 0) and (modelyp[index] == 0):
+                 indlist.append(abs(var))
+-    
++
+     indlist = np.array(indlist)
+     indlist = np.unique(indlist)
+ 
+@@ -118,13 +117,6 @@ def callRC2(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder):
+     return indlist
+ 
+ 
+-
+-
+-
+-
+-
+-
+-
+ def callMaxsat(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder, inputfile_name, flag):
+     itr = 0
+     for var in Yvar:
+@@ -134,25 +126,27 @@ def callMaxsat(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder, inputfil
+                 weight = len(Yvar) - yindex
+             else:
+                 weight = 1
+-            
++
+             if modelyp[itr] == 0:
+-                maxsatcnf += "%s -%s 0\n" %(weight, var )
++                maxsatcnf += "%s -%s 0\n" % (weight, var)
+             else:
+-                maxsatcnf += "%s %s 0\n" %(weight,var)
++                maxsatcnf += "%s %s 0\n" % (weight, var)
+         itr += 1
+ 
+-    maxsatformula =  inputfile_name + "_maxsat.cnf"
++    maxsatformula = inputfile_name + "_maxsat.cnf"
+ 
+-    outputfile =  "o.txt"
++    outputfile = "o.txt"
+ 
+     with open(maxsatformula, "w") as f:
+         f.write(maxsatcnf)
+     f.close()
+ 
+-    cmd = "./dependencies/open-wbo %s -print-unsat-soft=%s  > /dev/null 2>&1 " % (maxsatformula, outputfile)
+-    
++    cmd = "./dependencies/open-wbo %s -print-unsat-soft=%s  > /dev/null 2>&1 " % (
++        maxsatformula, outputfile)
++
+     os.system(cmd)
+ 
++    assert(os.path.exists(outputfile))
+     with open(outputfile, 'r') as f:
+         lines = f.readlines()
+     f.close()
+@@ -182,12 +176,13 @@ def callMaxsat(maxsatcnf, modelyp, UniqueVars, Unates, Yvar, YvarOrder, inputfil
+     return indlist
+ 
+ 
+-def findUNSATCorePicosat(cnffile,unsatcorefile, satfile, Xvar,Yvar, args):
+-    cmd = "./dependencies/picosat -s %s -V %s %s > %s " %(args.seed, unsatcorefile, cnffile, satfile)
++def findUNSATCorePicosat(cnffile, unsatcorefile, satfile, Xvar, Yvar, args):
++    cmd = "./dependencies/picosat -s %s -V %s %s > %s " % (
++        args.seed, unsatcorefile, cnffile, satfile)
+     os.system(cmd)
+     exists = os.path.isfile(unsatcorefile)
+     if exists:
+-        with open(unsatcorefile,"r") as f:
++        with open(unsatcorefile, "r") as f:
+             lines = f.readlines()
+         f.close()
+         clistx = []
+@@ -205,6 +200,7 @@ def findUNSATCorePicosat(cnffile,unsatcorefile, satfile, Xvar,Yvar, args):
+         os.unlink(satfile)
+         return 0, [], []
+ 
++
+ def findUnsatCore(repairYvar, repaircnf, Xvar, Yvar, Count_Yvar, inputfile_name, args):
+     lines = repaircnf.split("\n")
+     for line in lines:
+@@ -213,11 +209,12 @@ def findUnsatCore(repairYvar, repaircnf, Xvar, Yvar, Count_Yvar, inputfile_name,
+             numCls = int(line.split()[3])
+             str_tmp = "p cnf " + str(numVar) + " " + str(numCls)
+             break
+-    repaircnf = repaircnf.replace(str_tmp, "p cnf " + str(numVar) + " " + str(numCls + Count_Yvar  + len(Xvar)))
++    repaircnf = repaircnf.replace(
++        str_tmp, "p cnf " + str(numVar) + " " + str(numCls + Count_Yvar + len(Xvar)))
+     repaircnf += repairYvar
+     cnffile = tempfile.gettempdir() + '/' + inputfile_name+"_unsat.cnf"
+ 
+-    with open(cnffile,"w") as f:
++    with open(cnffile, "w") as f:
+         f.write(repaircnf)
+     f.close()
+ 
+@@ -226,13 +223,15 @@ def findUnsatCore(repairYvar, repaircnf, Xvar, Yvar, Count_Yvar, inputfile_name,
+     exists = os.path.isfile(unsatcorefile)
+     if exists:
+         os.remove(unsatcorefile)
+-    ret, clistx, clisty = findUNSATCorePicosat(cnffile, unsatcorefile, satfile, Xvar,Yvar, args)
++    ret, clistx, clisty = findUNSATCorePicosat(
++        cnffile, unsatcorefile, satfile, Xvar, Yvar, args)
+ 
+     if ret:
+         return (ret, [], clistx, clisty)
+     else:
+-        os.system("./dependencies/cryptominisat5 --random %s --maxsol %s %s --dumpresult %s > /dev/null 2>&1" % (args.seed, 1, cnffile,satfile))
+-        with open(satfile,"r") as f:
++        os.system("./dependencies/cryptominisat5 --random %s --maxsol %s %s --dumpresult %s > /dev/null 2>&1" %
++                  (args.seed, 1, cnffile, satfile))
++        with open(satfile, "r") as f:
+             lines = f.readlines()
+         f.close()
+         model = []
+@@ -256,10 +255,10 @@ def findUnsatCore(repairYvar, repaircnf, Xvar, Yvar, Count_Yvar, inputfile_name,
+                 model.append(0)
+         os.unlink(cnffile)
+         os.unlink(satfile)
+-        return ret, model, [], []   
++        return ret, model, [], []
+ 
+ 
+-def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inputfile_name, args, flagRC2):
++def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inputfile_name, refine_var, args, flagRC2):
+     modelyp = sigma[2]
+     modelx = sigma[0]
+ 
+@@ -271,41 +270,44 @@ def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inp
+     while itr < len(ind):
+         repairvar = ind[itr]
+         itr += 1
+-        
++
+         if (repairvar in UniqueVars) or (repairvar in Unates) or (repairvar in satvar):
+             continue
+ 
+-
+         repairYvar = ''
+         count_Yvar = 0
+         allowed_Y = []
+ 
+         repairvar_index = np.where(YvarOrder == repairvar)[0][0]
++        refine_var[repairvar_index] += 1
++        # if refine_var[repairvar_index] > args.selfsubthres:
++        #     print("exceed selfsubthres {}". format(refine_var[repairvar_index]))
+ 
+-        for jindex in range(repairvar_index,len(Yvar)):  
++        for jindex in range(repairvar_index, len(Yvar)):
+             yjvar = YvarOrder[jindex]
+             allowed_Y.append(yjvar)
+             yj_index = np.where(np.array(Yvar) == yjvar)[0][0]
+-            
++
+             if (yjvar in UniqueVars) or (yjvar in Unates):
+                 continue
+ 
+             if yjvar in repaired:
+                 if modelyp[yj_index] == 0:
+-                    repairYvar += "%s 0\n" %(yjvar)
++                    repairYvar += "%s 0\n" % (yjvar)
+                 else:
+-                    repairYvar += "-%s 0\n" %(yjvar)
++                    repairYvar += "-%s 0\n" % (yjvar)
+             else:
+                 if modelyp[yj_index] == 0:
+-                    repairYvar += "-%s 0\n" %(yjvar)
++                    repairYvar += "-%s 0\n" % (yjvar)
+                 else:
+-                    repairYvar += "%s 0\n" %(yjvar)
++                    repairYvar += "%s 0\n" % (yjvar)
+             count_Yvar += 1
+-        
++
+         if args.verbose:
+-            print("repairing %s" %(repairvar))
+-        
+-        ret, model, clistx, clisty = findUnsatCore(repairYvar, repaircnf, Xvar, Yvar, count_Yvar, inputfile_name, args)
++            print("repairing %s" % (repairvar))
++
++        ret, model, clistx, clisty = findUnsatCore(
++            repairYvar, repaircnf, Xvar, Yvar, count_Yvar, inputfile_name, args)
+ 
+         if ret == 0:
+             if args.verbose:
+@@ -321,7 +323,7 @@ def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inp
+             model = np.array(model)
+             diff = np.bitwise_xor(modelyp, model)
+             index = np.where(diff == 1)[0]
+-            
++
+             for yk in index:
+                 l = itr
+                 if (Yvar[yk] not in ind) and (Yvar[yk] not in Unates) and (Yvar[yk] not in UniqueVars):
+@@ -336,21 +338,21 @@ def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inp
+                             break
+                         l = l + 1
+                     if flag == 0:
+-                        ind = np.append(ind, Yvar[yk]).astype(np.int)   
++                        ind = np.append(ind, Yvar[yk]).astype(np.int)
+         else:
+             repaired.append(repairvar)
+             if args.verbose:
+                 print("gk formula is UNSAT\ncreating beta formula")
+-            
++
+             betaformula = ''
+             for x in clistx:
+                 x_index = np.where(np.array(Xvar) == x)[0][0]
+ 
+                 if modelx[x_index] == 0:
+-                    betaformula += "~i%s & " %(x)
++                    betaformula += "~i%s & " % (x)
+                 else:
+-                    betaformula += "i%s & " %(x)
+-                
++                    betaformula += "i%s & " % (x)
++
+             for y in clisty:
+                 y_index = np.where(np.array(Yvar) == y)[0][0]
+ 
+@@ -364,36 +366,43 @@ def repair(repaircnf, ind, Xvar, Yvar, YvarOrder, UniqueVars, Unates, sigma, inp
+ 
+                 if y == repairvar:
+                     continue
+-        
++
+                 if modelyp[y_index] == 0:
+-                    betaformula += "~o%s & " %(y)
++                    betaformula += "~o%s & " % (y)
+                 else:
+-                    betaformula += "o%s & " %(y)
+-            
++                    betaformula += "o%s & " % (y)
++
+             repairfunctions[repairvar] = betaformula.strip("& ")
+             assert(repairfunctions[repairvar] != "")
+-        
++
+     if args.verbose == 2:
+         print("repaired functions", repairfunctions)
+     return 0, repairfunctions
+ 
++
+ def updateSkolem(repairfunctions, countRefine, modelyp, inputfile_name, Yvar):
+-    with open(tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v","r") as f:
++    with open(tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v", "r") as f:
+         lines = f.readlines()
+     f.close()
+     skolemcontent = "".join(lines)
+     for yvar in list(repairfunctions.keys()):
+-        oldfunction = [line for line in lines if "assign w" + str(yvar)+" " in line][0]
+-        oldfunctionR = oldfunction.rstrip(";\n").lstrip("assign w%s = " %(yvar))
+-        repairformula = "wire beta%s_%s;\nassign beta%s_%s = ( %s );\n" %(yvar,countRefine,yvar,countRefine,repairfunctions[yvar])
+-        
++        oldfunction = [line for line in lines if "assign w" +
++                       str(yvar)+" " in line][0]
++        oldfunctionR = oldfunction.rstrip(
++            ";\n").lstrip("assign w%s = " % (yvar))
++        repairformula = "wire beta%s_%s;\nassign beta%s_%s = ( %s );\n" % (
++            yvar, countRefine, yvar, countRefine, repairfunctions[yvar])
++
+         yindex = np.where(np.array(Yvar) == yvar)[0][0]
+ 
+         if modelyp[yindex] == 0:
+-            newfunction = "assign w%s = (( %s ) | ( beta%s_%s) );\n" %(yvar, oldfunctionR, yvar, countRefine)
++            newfunction = "assign w%s = (( %s ) | ( beta%s_%s) );\n" % (
++                yvar, oldfunctionR, yvar, countRefine)
+         else:
+-            newfunction = "assign w%s = (( %s ) & ~(beta%s_%s) );\n" %(yvar, oldfunctionR, yvar, countRefine)
+-        skolemcontent = skolemcontent.replace(oldfunction, repairformula + newfunction)
+-    with open(tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v","w") as f:
++            newfunction = "assign w%s = (( %s ) & ~(beta%s_%s) );\n" % (
++                yvar, oldfunctionR, yvar, countRefine)
++        skolemcontent = skolemcontent.replace(
++            oldfunction, repairformula + newfunction)
++    with open(tempfile.gettempdir() + '/' + inputfile_name + "_skolem.v", "w") as f:
+         f.write(skolemcontent)
+-    f.close()
+\ No newline at end of file
++    f.close()
