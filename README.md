@@ -30,6 +30,12 @@ To execute the solver, use the following command.
 ./abc -q "ssat" <sdimacs>
 ```
 
+## Benchmarks
+
+- We provide three toy cases for testing purpose. You can found them in `benchmark` folder.
+
+- The full benchmarks can be found in the repository of [ClauSSAT](git@github.com:NTU-ALComLab/ClauSSat.git).
+
 ## Contact
 
 If you have any problems or suggestions, feel free to create an issue or contact us through r09943108@ntu.edu.tw.
