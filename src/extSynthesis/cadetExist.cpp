@@ -63,7 +63,7 @@ Abc_Ntk_t* applyExists(Abc_Ntk_t* pNtk, Abc_Ntk_t* pExist) {
   }
   Abc_NtkForEachPi(pExist, pObj, index) {
     int id = atoi(Abc_ObjName(pObj));
-    Abc_Obj_t* pCorr = Abc_NtkObj(pNtk, id);
+    Abc_Obj_t* pCorr = Abc_NtkPi(pNtk, id - 1);
     bool fInv = false;
     if (Abc_ObjIsPo(pCorr)) {
       fInv = Abc_ObjFaninC0(pCorr);

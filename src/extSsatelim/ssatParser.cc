@@ -197,7 +197,9 @@ void ssat_Parser(ssat_solver *s, char *filename) {
   }
   p->buildNetwork();
   p->buildQuantifier();
-  // p->unatePreprocess();
+  if (p->getDefinedNum() == 0 && s->useGateDetect) {
+    ssat_solver_existouter(p->getSolver(), temp_file);
+  }
   remove(temp_file);
   delete (p);
 }

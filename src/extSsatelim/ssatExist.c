@@ -165,7 +165,7 @@ void ssat_solver_existouter(ssat_solver *s, char *filename) {
   if (s->verbose) {
     printf("try cadet exist elim\n");
   }
-  pNtkNew = ssat_cadet_existouter(s->pNtk, 200, temp_aigfile, temp_qdimcasfile);
+  pNtkNew = ssat_cadet_existouter(s->pNtk, 500, temp_aigfile, temp_qdimcasfile);
   if (pNtkNew) {
     ++s->successCadet;
     ssat_finish_existouter(s, pNtkNew, temp_aigfile, temp_qdimcasfile, vExists, vForalls);

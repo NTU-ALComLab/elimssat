@@ -6,15 +6,15 @@
 #include "extMinisat/utils/ParseUtils.h"
 #include "extUtil/util.h"
 #include "ssatelim.h"
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <zlib.h>
 
 ABC_NAMESPACE_HEADER_START
 
-using std::unordered_set;
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 
 class ssatParser {
@@ -26,6 +26,8 @@ public:
   void uniquePreprocess();
   void buildQuantifier();
   void buildNetwork();
+  inline int getDefinedNum() { return _definedVariables.size(); }
+  inline ssat_solver* getSolver() { return _solver; }
 
 private:
   // ssatParser.cc
@@ -39,9 +41,8 @@ private:
   // unique.cc
   Abc_Obj_t *buildDefinition(vector<int> &, Aig_Man_t *);
   avy::ItpMinisat *createItpSolver(vector<int> &consider_vector);
-  void collectVariable(vector<int> &consider_vector,
-      vector<int> &shared_vector,
-      unordered_set<int> &exist_map);
+  void collectVariable(vector<int> &consider_vector, vector<int> &shared_vector,
+                       unordered_set<int> &exist_map);
 
   int _nVar;
   int _nClause;
