@@ -185,13 +185,21 @@ void ssatParser::uniquePreprocess() {
   VLOG(1) << "size of shared_vector: " << shared_vector.size();
   VLOG(1) << "size of considered_vector: " << consider_vector.size();
   avy::ItpMinisat *solver = createItpSolver(consider_vector);
+  vector<int> temp = {};
+  boost::tribool is_sat = solver->solve(temp, CONFLICT_LIMIT);
+  if (!is_sat) {
+    VLOG(1) << "matrix unsat";
+    std::cout << std::endl;
+    std::cout << "> Result = 0" << std::endl;
+    exit(0);
+  }
 
   // solving
   vector<int> select_vars;
   int select_var = _nVar * 2 + 1;
   for (int index = 0; index < consider_vector.size(); index++) {
     int entry = consider_vector[index];
-    // VLOG(1) << index + 1 << "/" << consider_vector.size() << ": " << entry << " size of shared_vector: " << shared_vector.size();
+    VLOG(1) << index + 1 << "/" << consider_vector.size() << ": " << entry << " size of shared_vector: " << shared_vector.size();
     int pClause[2];
     if (exist_map.find(entry) != exist_map.end()) {
       pClause[0] = toLitCond(select_var, true);
